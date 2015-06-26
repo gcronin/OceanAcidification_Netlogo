@@ -1,3 +1,7 @@
+;--------------------------------------------------------------------------------------------------------------------------
+; BREEDS AND GLOBAL VARIABLES
+;--------------------------------------------------------------------------------------------------------------------------
+
 breed [ TFs TF ] ;Transcription Factors
 breed [ cellFunctions cellFunction ]
 breed [ banners ]
@@ -5,33 +9,29 @@ TFs-own [ status ] ;1=on or 0=off
 cellFunctions-own [ status ] ;1=on or 0=off
 breed [ diatoms diatom ]
 diatoms-own [ N P Si health ]
-globals [ numTurtles nitrogenMax siliconMax phosphorousMax ]
+globals [ numTurtles nitrogenMax siliconMax phosphorousMax nitrogenCurrent siliconCurrent phosphorousCurrent numDiatoms growthRate pH ]
 
+
+
+;--------------------------------------------------------------------------------------------------------------------------
+; SETUP
+;--------------------------------------------------------------------------------------------------------------------------
 
 to setup
   clear-all
   
+  set numDiatoms 5
+  set growthRate 1
   set nitrogenMax 100
   set siliconMax 50
   set phosphorousMax 25
+  setpH
   
-  ;Setup Patches:  Grey at top, black line in middle, sunlight or not, blue water at bottom
-  ask patches [ if pycor > 0 [ set pcolor 39 ]]
-  ask patches [ if pycor = 0 [set pcolor black ]]
-  ask patches [ if (light = true) and (pycor < 0 ) and (pycor > -3) [ set pcolor yellow ] ] 
-  ask patches [ if (pycor <= -3 ) and (pycor >= min-pycor) [ set pcolor blue ]]
-  let i Nitrogen
-  while [ i > 0 ] [
-    let randomY ((-1) * (random (max-pycor - 2) + 3))
-    let randomX random-xcor
-    ask patch randomX randomY [ ifelse pcolor = [255 0 0] [ ] [ set pcolor [255 0 0]  set i ( i - 1 ) set plabel-color black  set plabel "N"] ]
-    ]
-  set i Silicon
-  while [ i > 0 ] [
-    let randomY ((-1) * (random (max-pycor - 2) + 3))
-    let randomX random-xcor
-    ask patch randomX randomY [ ifelse ( pcolor = [255 0 0] [ ] [ set pcolor [255 0 0]  set i ( i - 1 ) set plabel-color black  set plabel "N"] ]
-    ]
+  setupPatches
+  
+  addNitrogen
+  addSilicon
+  addPhosphorous
   
   ;Create transcription factors and cellular function in appropriate locations at top
   let xlocation  -3 * max-pxcor / 4
@@ -40,22 +40,27 @@ to setup
   setupCellFunctions 6 xlocation
   setupLinks
   
-  ;Create and randomly seed diatoms in the water
   setupDiatoms
+  
   reset-ticks
   
 end
 
 
-
-
-
-
+;--------------------------------------------------------------------------------------------------------------------------
+; MAIN LOOP
+;--------------------------------------------------------------------------------------------------------------------------
 
 to go
+
+  setpH
   ask patches [ if (light = true) and (pycor < 0 ) and (pycor > -3) [ set pcolor yellow ] ]
     
+  ifelse ( CO2 = 400 ) [ set growthRate 1 ] [ set growthRate 2 ]
+    
   ifelse ( Light = true ) [ 
+    
+    
     ask TF 0 [ TFturnOFF ]
     ask TF 2 [ TFturnON ]
     ask TF 3 [ TFturnOFF ] 
@@ -76,20 +81,74 @@ to go
   ask TFs [ ifelse status = 1 [ ask my-out-links [ set color green ]] [ ask my-out-links [ set color red ]] ]
   
   ask diatoms [
-    if pcolor = [255 0 0] [ 
-      set N ( N + 1 )
-      ask patch-here [ set pcolor blue set plabel "" ]
-    ]
-    if  N > 0 [ set shape "default"]
-    fd 1
-    if ycor > -3 [ set ycor (-1) * (random (max-pycor - 2) + 3 )] 
-    if ycor < (min-pycor ) [ set ycor (-1) * (random (max-pycor - 2) + 3 ) ] ]
-  
+    feed
+    move
+    reproduce
+  ]
+
   tick
   
 end
 
 
+
+;--------------------------------------------------------------------------------------------------------------------------
+; ....................................OBSERVER METHODS....................................................................
+;--------------------------------------------------------------------------------------------------------------------------
+
+to setupPatches  ;Setup Patches:  Grey at top, black line in middle, sunlight or not, blue water at bottom
+  ask patches [ if pycor > 0 [ set pcolor 39 ]]
+  ask patches [ if pycor = 0 [set pcolor black ]]
+  ask patches [ if (light = true) and (pycor < 0 ) and (pycor > -3) [ set pcolor yellow ] ] 
+  ask patches [ if (pycor <= -3 ) and (pycor >= min-pycor) [ set pcolor blue ]]
+end
+
+;--------------------------------------------------------------------------------------------------------------------------
+; Set pH
+;--------------------------------------------------------------------------------------------------------------------------
+to setpH
+  if CO2 = 400 [ set pH 8.5 ]
+  if CO2 = 800 [ set pH 7.5 ]
+end
+
+;--------------------------------------------------------------------------------------------------------------------------
+; ADD NUTRIENTS
+;--------------------------------------------------------------------------------------------------------------------------
+to addNitrogen
+  let i Nitrogen
+  while [ i > 0 ] [
+    let randomY ((-1) * (random (max-pycor - 2) + 3))
+    let randomX random-xcor
+    ask patch randomX randomY [ ifelse pcolor = 15 [ ] [ set pcolor 15  set i ( i - 1 ) set plabel-color black  set plabel "N"] ]
+    ]
+  set nitrogenCurrent ( nitrogenCurrent + Nitrogen )
+end
+
+to addSilicon
+  let i Silicon
+  while [ i > 0 ] [
+    let randomY ((-1) * (random (max-pycor - 2) + 3))
+    let randomX random-xcor
+    ask patch randomX randomY [ ifelse ( pcolor = 15 OR pcolor = 116 ) [ ] [ set pcolor 116  set i ( i - 1 ) set plabel-color black  set plabel "Si"] ]
+    ]
+  set siliconCurrent ( siliconCurrent + Silicon )
+end
+
+to addPhosphorous
+  let i Phosphorous
+  while [ i > 0 ] [
+    let randomY ((-1) * (random (max-pycor - 2) + 3))
+    let randomX random-xcor
+    ask patch randomX randomY [ ifelse ( pcolor = 15 OR pcolor = 116 OR pcolor = 27 ) [ ] [ set pcolor 27  set i ( i - 1 ) set plabel-color black  set plabel "P"] ]
+    ]
+  set phosphorousCurrent ( phosphorousCurrent + Phosphorous )
+end
+
+
+
+;--------------------------------------------------------------------------------------------------------------------------
+; CREATE LINKS IN UPPER PANEL
+;--------------------------------------------------------------------------------------------------------------------------
 
 to setupLinks
   set-default-shape links "line"
@@ -103,18 +162,24 @@ end
   
   
 
+;--------------------------------------------------------------------------------------------------------------------------
+; CREATE DIATOMS
+;--------------------------------------------------------------------------------------------------------------------------
 
 to setupDiatoms
   set-default-shape diatoms "diatoms"
-  create-diatoms 20
+  create-diatoms numDiatoms
   let i 20
-  repeat 20 [ ask diatom i [ 
+  repeat numDiatoms [ ask diatom i [ 
       setxy random-xcor (-1)* ( random (max-pycor - 2) + 3 )
       set i i + 1 ]]
 
 end
 
-; Creates cellular function turtles, places them in appropriate place
+
+;--------------------------------------------------------------------------------------------------------------------------
+; CREATE CELL FUNCTIONS
+;--------------------------------------------------------------------------------------------------------------------------
 to setupCellFunctions [ numFunctions xlocation ]
   set-default-shape cellFunctions "cellularFunctions"
   let scalingFactor max-pycor / 2 / ( numFunctions - 2.8 )
@@ -147,12 +212,14 @@ to setupCellFunctions [ numFunctions xlocation ]
     set xcor xlocation
     set ycor 6 * scalingFactor] 
   set numTurtles numTurtles + numFunctions
-    
-    
-  
-  
 end
-  
+
+
+
+;--------------------------------------------------------------------------------------------------------------------------
+; TRANSCRIPTION FACTOR FUNCTIONS
+;--------------------------------------------------------------------------------------------------------------------------
+; Change appearance of Transcription Factors to make them appear on or off  
 to TFturnON
   set size 3.5
   set shape "activetranscriptionfactor"
@@ -160,7 +227,7 @@ to TFturnON
 end
 
 to TFturnOFF
-   set size 2
+  set size 2
   set shape "inactivetranscriptionfactor"
   set status 0
 end
@@ -204,6 +271,55 @@ to attach-banner [labelname offset]
     set heading 90
     fd offset
   ]
+end
+
+
+;--------------------------------------------------------------------------------------------------------------------------
+; ....................................TURTLE METHODS....................................................................
+;--------------------------------------------------------------------------------------------------------------------------
+
+
+;--------------------------------------------------------------------------------------------------------------------------
+; EAT NUTRIENTS
+;--------------------------------------------------------------------------------------------------------------------------
+to feed
+    if pcolor = 15 [ 
+      set N ( N + 1 )
+      set nitrogenCurrent ( nitrogenCurrent - 1)
+      ask patch-here [ set pcolor blue set plabel "" ]
+    ]
+    if pcolor = 116 [ 
+      set Si ( Si + 1 )
+      set siliconCurrent ( siliconCurrent  - 1 )
+      ask patch-here [ set pcolor blue set plabel "" ]
+    ]
+    if pcolor = 27 [ 
+      set P ( P + 1 )
+      set phosphorousCurrent ( phosphorousCurrent  - 1 )
+      ask patch-here [ set pcolor blue set plabel "" ]
+    ]
+end
+
+
+;--------------------------------------------------------------------------------------------------------------------------
+; ADD NUTRIENTS
+;--------------------------------------------------------------------------------------------------------------------------
+to move
+    fd 1
+    if ycor > -3 [ set ycor (-1) * (random (max-pycor - 2) + 3 )] 
+    if ycor < (min-pycor ) [ set ycor (-1) * (random (max-pycor - 2) + 3 ) ] 
+end
+    
+  
+;--------------------------------------------------------------------------------------------------------------------------
+; REPRODUCE IF THERE IS LIGHT AND NUTRIENTS AVAILABLE
+;--------------------------------------------------------------------------------------------------------------------------
+to reproduce  
+  if ( light = true AND N > 0 AND Si > 0 AND P > 0 ) [
+      hatch growthRate [ set N 0  set P 0 set Si 0 set heading ( random 360 ) fd 5 ]
+      set N ( N - 1 )
+      set P ( P - 1 )
+      set Si ( Si - 1 ) ]  
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
@@ -290,13 +406,13 @@ NIL
 1
 
 PLOT
-830
-26
-1030
-176
-Nitrogen
+1066
+352
+1595
+669
+Nutrients
 time
-nitrogen
+NIL
 0.0
 10.0
 0.0
@@ -305,7 +421,9 @@ true
 false
 "" ""
 PENS
-"Nitrogen" 1.0 0 -16777216 true "" "plot Nitrogen"
+"Nitrogen" 1.0 0 -2674135 true "" "plot nitrogenCurrent"
+"Phosphorous" 1.0 0 -8630108 true "" "plot phosphorousCurrent"
+"Silicon" 1.0 0 -612749 true "" "plot siliconCurrent"
 
 PLOT
 830
@@ -323,7 +441,7 @@ true
 false
 "" ""
 PENS
-"default" 1.0 0 -16777216 true "" "plot Phosphorous"
+"default" 1.0 0 -16777216 true "" "plot phosphorousCurrent"
 
 PLOT
 830
@@ -341,7 +459,7 @@ true
 false
 "" ""
 PENS
-"default" 1.0 0 -16777216 true "" "plot Silicon"
+"default" 1.0 0 -16777216 true "" "plot siliconCurrent"
 
 PLOT
 1068
@@ -377,87 +495,135 @@ true
 false
 "" ""
 PENS
-"default" 1.0 0 -16777216 true "" "plot count turtles"
+"default" 1.0 0 -16777216 true "" "plot CO2"
 
 PLOT
-1063
-360
-1263
-510
-Dissolved Oxygen
-NIL
-NIL
-0.0
-10.0
-0.0
-10.0
-true
-false
-"" ""
-PENS
-"default" 1.0 0 -16777216 true "" "plot count turtles"
-
-PLOT
-1064
-525
-1264
-675
+824
+29
+1024
+179
 pH
 NIL
 NIL
 0.0
 10.0
-0.0
-10.0
+6.0
+9.0
 true
 false
 "" ""
 PENS
-"default" 1.0 0 -16777216 true "" "plot count turtles"
+"pen-0" 1.0 0 -7500403 true "" "plot pH"
 
 SLIDER
-23
-193
-195
-226
+15
+322
+187
+355
 Nitrogen
 Nitrogen
 0
 nitrogenMax
-8
+86
 1
 1
 NIL
 HORIZONTAL
 
 SLIDER
-23
-239
-195
-272
+14
+441
+186
+474
 Silicon
 Silicon
 0
 siliconMax
-10
+50
 1
 1
 NIL
 HORIZONTAL
 
 SLIDER
-23
-287
-195
-320
+14
+579
+186
+612
 Phosphorous
 Phosphorous
 0
 phosphorousMax
-5
+25
 1
 1
 NIL
+HORIZONTAL
+
+BUTTON
+38
+284
+155
+317
+Add Nitrogen
+addNitrogen
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
+
+BUTTON
+49
+400
+153
+433
+Add Silicon
+addSilicon
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
+
+BUTTON
+29
+538
+175
+571
+Add Phosphorous
+addPhosphorous
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
+
+SLIDER
+9
+200
+181
+233
+CO2
+CO2
+400
+800
+800
+400
+1
+ppm
 HORIZONTAL
 
 @#$#@#$#@
