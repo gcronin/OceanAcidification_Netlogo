@@ -4,17 +4,34 @@ breed [ banners ]
 TFs-own [ status ] ;1=on or 0=off 
 cellFunctions-own [ status ] ;1=on or 0=off
 breed [ diatoms diatom ]
-globals [ numTurtles ]
+diatoms-own [ N P Si health ]
+globals [ numTurtles nitrogenMax siliconMax phosphorousMax ]
 
 
 to setup
   clear-all
+  
+  set nitrogenMax 100
+  set siliconMax 50
+  set phosphorousMax 25
   
   ;Setup Patches:  Grey at top, black line in middle, sunlight or not, blue water at bottom
   ask patches [ if pycor > 0 [ set pcolor 39 ]]
   ask patches [ if pycor = 0 [set pcolor black ]]
   ask patches [ if (light = true) and (pycor < 0 ) and (pycor > -3) [ set pcolor yellow ] ] 
   ask patches [ if (pycor <= -3 ) and (pycor >= min-pycor) [ set pcolor blue ]]
+  let i Nitrogen
+  while [ i > 0 ] [
+    let randomY ((-1) * (random (max-pycor - 2) + 3))
+    let randomX random-xcor
+    ask patch randomX randomY [ ifelse pcolor = [255 0 0] [ ] [ set pcolor [255 0 0]  set i ( i - 1 ) set plabel-color black  set plabel "N"] ]
+    ]
+  set i Silicon
+  while [ i > 0 ] [
+    let randomY ((-1) * (random (max-pycor - 2) + 3))
+    let randomX random-xcor
+    ask patch randomX randomY [ ifelse ( pcolor = [255 0 0] [ ] [ set pcolor [255 0 0]  set i ( i - 1 ) set plabel-color black  set plabel "N"] ]
+    ]
   
   ;Create transcription factors and cellular function in appropriate locations at top
   let xlocation  -3 * max-pxcor / 4
@@ -36,7 +53,38 @@ end
 
 
 to go
-  if Light = true [ create-diatoms 1 ]
+  ask patches [ if (light = true) and (pycor < 0 ) and (pycor > -3) [ set pcolor yellow ] ]
+    
+  ifelse ( Light = true ) [ 
+    ask TF 0 [ TFturnOFF ]
+    ask TF 2 [ TFturnON ]
+    ask TF 3 [ TFturnOFF ] 
+    ask patches [ if (pycor < 0 ) and (pycor > -3) [ set pcolor yellow ] ]]
+  
+  [ ask TF 0 [ TFturnON ]
+    ask TF 2 [ TFturnOFF ]
+    ask TF 3 [ TFturnON ] 
+    ask patches [ if (pycor < 0 ) and (pycor > -3) [ set pcolor black ] ]]
+    
+  ifelse ( Silicon > 0 and Phosphorous > 0 and Nitrogen > 0 ) [
+    ask TF 1 [ TFturnOFF ]
+    ask TF 2 [ TFturnON ] ]
+  
+  [ ask TF 1 [ TFturnON ]
+    ask TF 2 [ TFturnOFF ] ]
+  
+  ask TFs [ ifelse status = 1 [ ask my-out-links [ set color green ]] [ ask my-out-links [ set color red ]] ]
+  
+  ask diatoms [
+    if pcolor = [255 0 0] [ 
+      set N ( N + 1 )
+      ask patch-here [ set pcolor blue set plabel "" ]
+    ]
+    if  N > 0 [ set shape "default"]
+    fd 1
+    if ycor > -3 [ set ycor (-1) * (random (max-pycor - 2) + 3 )] 
+    if ycor < (min-pycor ) [ set ycor (-1) * (random (max-pycor - 2) + 3 ) ] ]
+  
   tick
   
 end
@@ -105,12 +153,23 @@ to setupCellFunctions [ numFunctions xlocation ]
   
 end
   
+to TFturnON
+  set size 3.5
+  set shape "activetranscriptionfactor"
+  set status 1
+end
+
+to TFturnOFF
+   set size 2
+  set shape "inactivetranscriptionfactor"
+  set status 0
+end
 
 ; Create the 4 transcription factors, attach labels, and position appropriately 
 to setupTFs [ numTFs xlocation ]
   set numTurtles 2 * numTFs - 1
   let scalingFactor max-pycor / 2 / ( numTFs - 1.8 )
-  set-default-shape TFs "activetranscriptionfactor" 
+  set-default-shape TFs "transcriptionfactor" 
   create-TFs numTFs  
   ask TFs [ 
     set size 3
@@ -195,51 +254,6 @@ Mixing
 1
 1
 -1000
-
-SLIDER
-24
-221
-196
-254
-Nitrogen
-Nitrogen
-0
-100
-17
-1
-1
-NIL
-HORIZONTAL
-
-SLIDER
-24
-273
-196
-306
-Phosphorous
-Phosphorous
-0
-100
-50
-1
-1
-NIL
-HORIZONTAL
-
-SLIDER
-23
-326
-195
-359
-Silicon
-Silicon
-0
-100
-50
-1
-1
-NIL
-HORIZONTAL
 
 BUTTON
 12
@@ -401,6 +415,51 @@ false
 PENS
 "default" 1.0 0 -16777216 true "" "plot count turtles"
 
+SLIDER
+23
+193
+195
+226
+Nitrogen
+Nitrogen
+0
+nitrogenMax
+8
+1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+23
+239
+195
+272
+Silicon
+Silicon
+0
+siliconMax
+10
+1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+23
+287
+195
+320
+Phosphorous
+Phosphorous
+0
+phosphorousMax
+5
+1
+1
+NIL
+HORIZONTAL
+
 @#$#@#$#@
 ## WHAT IS IT?
 
@@ -446,7 +505,7 @@ Polygon -7500403 true true 150 5 40 250 150 205 260 250
 activetranscriptionfactor
 false
 0
-Rectangle -1 true false 30 30 270 270
+Rectangle -13840069 true false 30 30 270 270
 
 airplane
 true
@@ -598,6 +657,11 @@ Rectangle -16777216 true false 120 210 180 285
 Polygon -7500403 true true 15 120 150 15 285 120
 Line -16777216 false 30 120 270 120
 
+inactivetranscriptionfactor
+false
+0
+Rectangle -2674135 true false 30 30 270 270
+
 leaf
 false
 0
@@ -675,6 +739,11 @@ Circle -16777216 true false 30 30 240
 Circle -7500403 true true 60 60 180
 Circle -16777216 true false 90 90 120
 Circle -7500403 true true 120 120 60
+
+transcriptionfactor
+false
+0
+Rectangle -1 true false 30 30 270 270
 
 tree
 false
