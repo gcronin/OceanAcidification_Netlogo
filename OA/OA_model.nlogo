@@ -59,23 +59,49 @@ to go
   ifelse ( CO2 = 400 ) [ set growthRate 1 ] [ set growthRate 2 ]
     
   ifelse ( Light = true ) [ 
-    
+    ask cellfunction 8 [ CFturnON ]
+    ask cellfunction 9 [ CFturnON ]
+    ask cellfunction 10 [ CFturnON ]
+    ask cellfunction 11 [ CFturnON ]
+    ask cellfunction 12 [ CFturnOFF ]
+    ask cellfunction 13 [ CFturnON ]
     
     ask TF 0 [ TFturnOFF ]
     ask TF 2 [ TFturnON ]
     ask TF 3 [ TFturnOFF ] 
     ask patches [ if (pycor < 0 ) and (pycor > -3) [ set pcolor yellow ] ]]
   
-  [ ask TF 0 [ TFturnON ]
+  [ 
+    ask cellfunction 8 [ CFturnOFF ]
+    ask cellfunction 9 [ CFturnOFF ]
+    ask cellfunction 10 [ CFturnOFF ]
+    ask cellfunction 11 [ CFturnOFF ]
+    ask cellfunction 12 [ CFturnON ]
+    ask cellfunction 13 [ CFturnOFF ]
+        
+    ask TF 0 [ TFturnON ]
     ask TF 2 [ TFturnOFF ]
     ask TF 3 [ TFturnON ] 
     ask patches [ if (pycor < 0 ) and (pycor > -3) [ set pcolor black ] ]]
     
   ifelse ( Silicon > 0 and Phosphorous > 0 and Nitrogen > 0 ) [
+    ask cellfunction 8 [ CFturnON ]
+    ask cellfunction 10 [ CFturnON ]
+    ask cellfunction 11 [ CFturnOFF ]
+    ask cellfunction 12 [ CFturnOFF ]
+    ask cellfunction 13 [ CFturnOFF ]
+    
     ask TF 1 [ TFturnOFF ]
     ask TF 2 [ TFturnON ] ]
   
-  [ ask TF 1 [ TFturnON ]
+  [ 
+    ask cellfunction 8 [ CFturnOFF ]
+    ask cellfunction 10 [ CFturnOFF ]
+    ask cellfunction 11 [ CFturnON ]
+    ask cellfunction 12 [ CFturnON ]
+    ask cellfunction 13 [ CFturnON ]
+    
+    ask TF 1 [ TFturnON ]
     ask TF 2 [ TFturnOFF ] ]
   
   ask TFs [ ifelse status = 1 [ ask my-out-links [ set color green ]] [ ask my-out-links [ set color red ]] ]
@@ -214,7 +240,17 @@ to setupCellFunctions [ numFunctions xlocation ]
   set numTurtles numTurtles + numFunctions
 end
 
+to CFturnON
+  set size 3.5
+  set shape "activecellfunction"
+  set status 1
+end
 
+to CFturnOFF
+  set size 2
+  set shape "inactivecellfunction"
+  set status 0
+end
 
 ;--------------------------------------------------------------------------------------------------------------------------
 ; TRANSCRIPTION FACTOR FUNCTIONS
@@ -668,6 +704,11 @@ true
 0
 Polygon -7500403 true true 150 5 40 250 150 205 260 250
 
+activecellfunction
+false
+0
+Circle -13840069 true false 0 0 300
+
 activetranscriptionfactor
 false
 0
@@ -822,6 +863,11 @@ Rectangle -7500403 true true 45 120 255 285
 Rectangle -16777216 true false 120 210 180 285
 Polygon -7500403 true true 15 120 150 15 285 120
 Line -16777216 false 30 120 270 120
+
+inactivecellfunction
+false
+0
+Circle -2674135 true false 0 0 300
 
 inactivetranscriptionfactor
 false
