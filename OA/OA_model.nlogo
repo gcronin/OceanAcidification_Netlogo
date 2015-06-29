@@ -5,8 +5,8 @@
 breed [ TFs TF ] ;Transcription Factors
 breed [ cellFunctions cellFunction ]
 breed [ banners ]
-TFs-own [ status ] ;1=on or 0=off 
-cellFunctions-own [ status ] ;1=on or 0=off
+TFs-own [ statusLight statusNutrient ] ;1=on or 0=off
+cellFunctions-own [ statusLight statusNutrient] ;1=on or 0=off
 breed [ diatoms diatom ]
 diatoms-own [ N P Si health ]
 globals [ numTurtles nitrogenMax siliconMax phosphorousMax nitrogenCurrent siliconCurrent phosphorousCurrent numDiatoms growthRate pH ]
@@ -59,52 +59,52 @@ to go
   ifelse ( CO2 = 400 ) [ set growthRate 1 ] [ set growthRate 2 ]
     
   ifelse ( Light = true ) [ 
-    ask cellfunction 8 [ CFturnON ]
-    ask cellfunction 9 [ CFturnON ]
-    ask cellfunction 10 [ CFturnON ]
-    ask cellfunction 11 [ CFturnON ]
-    ask cellfunction 12 [ CFturnOFF ]
-    ask cellfunction 13 [ CFturnON ]
+    ask cellfunction 8 [ LightturnONdual ]
+    ask cellfunction 9 [ LightturnONsingle ]
+    ask cellfunction 10 [ LightturnONdual ]
+    ask cellfunction 11 [ LightturnONdual ]
+    ask cellfunction 12 [ LightturnOFFdual ]
+    ask cellfunction 13 [ LightturnONdual ]
     
-    ask TF 0 [ TFturnOFF ]
-    ask TF 2 [ TFturnON ]
-    ask TF 3 [ TFturnOFF ] 
+    ask TF 0 [ LightturnOFFsingle ]
+    ask TF 2 [ LightturnONdual ]
+    ask TF 3 [ LightturnOFFsingle ] 
     ask patches [ if (pycor < 0 ) and (pycor > -3) [ set pcolor yellow ] ]]
   
   [ 
-    ask cellfunction 8 [ CFturnOFF ]
-    ask cellfunction 9 [ CFturnOFF ]
-    ask cellfunction 10 [ CFturnOFF ]
-    ask cellfunction 11 [ CFturnOFF ]
-    ask cellfunction 12 [ CFturnON ]
-    ask cellfunction 13 [ CFturnOFF ]
+    ask cellfunction 8 [ LightturnOFFdual ]
+    ask cellfunction 9 [ LightturnOFFsingle ]
+    ask cellfunction 10 [ LightturnOFFdual ]
+    ask cellfunction 11 [ LightturnOFFdual ]
+    ask cellfunction 12 [ LightturnONdual ]
+    ask cellfunction 13 [ LightturnOFFdual ]
         
-    ask TF 0 [ TFturnON ]
-    ask TF 2 [ TFturnOFF ]
-    ask TF 3 [ TFturnON ] 
+    ask TF 0 [ LightturnONsingle ]
+    ask TF 2 [ LightturnOFFdual ]
+    ask TF 3 [ LightturnONsingle ] 
     ask patches [ if (pycor < 0 ) and (pycor > -3) [ set pcolor black ] ]]
     
-  ifelse ( Silicon > 0 and Phosphorous > 0 and Nitrogen > 0 ) [
-    ask cellfunction 8 [ CFturnON ]
-    ask cellfunction 10 [ CFturnON ]
-    ask cellfunction 11 [ CFturnOFF ]
-    ask cellfunction 12 [ CFturnOFF ]
-    ask cellfunction 13 [ CFturnOFF ]
+  ifelse ( siliconCurrent > 0 and phosphorousCurrent > 0 and nitrogenCurrent > 0 ) [
+    ask cellfunction 8 [ NutrientturnONdual ]
+    ask cellfunction 10 [ NutrientturnONdual ]
+    ask cellfunction 11 [ NutrientturnOFFdual ]
+    ask cellfunction 12 [ NutrientturnOFFdual ]
+    ask cellfunction 13 [ NutrientturnOFFdual ]
     
-    ask TF 1 [ TFturnOFF ]
-    ask TF 2 [ TFturnON ] ]
+    ask TF 1 [ NutrientturnOFFsingle ]
+    ask TF 2 [ NutrientturnONdual ] ]
   
   [ 
-    ask cellfunction 8 [ CFturnOFF ]
-    ask cellfunction 10 [ CFturnOFF ]
-    ask cellfunction 11 [ CFturnON ]
-    ask cellfunction 12 [ CFturnON ]
-    ask cellfunction 13 [ CFturnON ]
+    ask cellfunction 8 [ NutrientturnOFFdual ]
+    ask cellfunction 10 [ NutrientturnOFFdual ]
+    ask cellfunction 11 [ NutrientturnONdual ]
+    ask cellfunction 12 [ NutrientturnONdual ]
+    ask cellfunction 13 [ NutrientturnONdual ]
     
-    ask TF 1 [ TFturnON ]
-    ask TF 2 [ TFturnOFF ] ]
+    ask TF 1 [ NutrientturnONsingle ]
+    ask TF 2 [ NutrientturnOFFdual ] ]
   
-  ask TFs [ ifelse status = 1 [ ask my-out-links [ set color green ]] [ ask my-out-links [ set color red ]] ]
+  ;ask TFs [ ifelse status = 1 [ ask my-out-links [ set color green ]] [ ask my-out-links [ set color red ]] ]
   
   ask diatoms [
     feed
@@ -207,10 +207,12 @@ end
 ; CREATE CELL FUNCTIONS
 ;--------------------------------------------------------------------------------------------------------------------------
 to setupCellFunctions [ numFunctions xlocation ]
-  set-default-shape cellFunctions "cellularFunctions"
+  
   let scalingFactor max-pycor / 2 / ( numFunctions - 2.8 )
   create-cellFunctions numFunctions
   ask cellFunctions [ 
+    set shape "circle"
+    set color orange
     set size 2.5 
     set label-color black ]
   ask cellFunction (numTurtles + 1) [ 
@@ -240,43 +242,74 @@ to setupCellFunctions [ numFunctions xlocation ]
   set numTurtles numTurtles + numFunctions
 end
 
-to CFturnON
-  set size 3.5
-  set shape "activecellfunction"
-  set status 1
-end
-
-to CFturnOFF
-  set size 2
-  set shape "inactivecellfunction"
-  set status 0
-end
 
 ;--------------------------------------------------------------------------------------------------------------------------
 ; TRANSCRIPTION FACTOR FUNCTIONS
 ;--------------------------------------------------------------------------------------------------------------------------
-; Change appearance of Transcription Factors to make them appear on or off  
-to TFturnON
-  set size 3.5
-  set shape "activetranscriptionfactor"
-  set status 1
+; Change appearance of Transcription Factors/Cell Functions to make them appear on or off  
+to NutrientturnONdual
+  set statusNutrient 1
+  setSizeShapeDualRegulated
 end
 
-to TFturnOFF
-  set size 2
-  set shape "inactivetranscriptionfactor"
-  set status 0
+to NutrientturnOFFdual
+  set statusNutrient 0
+  setSizeShapeDualRegulated
+end
+
+to LightturnONdual
+  set statusLight 1
+  setSizeShapeDualRegulated
+end
+
+to LightturnOFFdual
+  set statusLight 0
+  setSizeShapeDualRegulated
+end
+
+to NutrientturnONsingle
+  set statusNutrient 1
+  setSizeShapeSingleRegulated
+end
+
+to NutrientturnOFFsingle
+  set statusNutrient 0
+  setSizeShapeSingleRegulated
+end
+
+to LightturnONsingle
+  set statusLight 1
+  setSizeShapeSingleRegulated
+end
+
+to LightturnOFFsingle
+  set statusLight 0
+  setSizeShapeSingleRegulated
+end
+
+to setSizeShapeDualRegulated
+  set size ( statusNutrient + statusLight + 2 )
+  if ( statusNutrient + statusLight = 2 ) [ set color green ]
+  if ( statusNutrient + statusLight = 1 )[ set color orange ]
+  if ( statusNutrient + statusLight = 0 ) [ set color red ]
+end
+
+to setSizeShapeSingleRegulated
+  set size ( statusNutrient + statusLight + 2 )
+  if ( statusNutrient + statusLight = 1 ) [ set color green ]
+  if ( statusNutrient + statusLight = 0 ) [ set color red ]
 end
 
 ; Create the 4 transcription factors, attach labels, and position appropriately 
 to setupTFs [ numTFs xlocation ]
   set numTurtles 2 * numTFs - 1
   let scalingFactor max-pycor / 2 / ( numTFs - 1.8 )
-  set-default-shape TFs "transcriptionfactor" 
   create-TFs numTFs  
   ask TFs [ 
     set size 3
-    set label-color black ]
+    set label-color black
+    set shape "square"
+    set color white ]
   ask TF 0 [ 
     attach-banner "Myb" 0.5
     set xcor xlocation
@@ -560,7 +593,7 @@ Nitrogen
 Nitrogen
 0
 nitrogenMax
-86
+41
 1
 1
 NIL
@@ -575,7 +608,7 @@ Silicon
 Silicon
 0
 siliconMax
-50
+16
 1
 1
 NIL
@@ -590,7 +623,7 @@ Phosphorous
 Phosphorous
 0
 phosphorousMax
-25
+9
 1
 1
 NIL
@@ -770,6 +803,11 @@ false
 0
 Circle -955883 true false 0 0 300
 
+circle
+false
+0
+Circle -7500403 true true 0 0 300
+
 circle 2
 false
 0
@@ -931,6 +969,11 @@ Rectangle -1 true true 65 221 80 296
 Polygon -1 true true 195 285 210 285 210 240 240 210 195 210
 Polygon -7500403 true false 276 85 285 105 302 99 294 83
 Polygon -7500403 true false 219 85 210 105 193 99 201 83
+
+square
+false
+0
+Rectangle -7500403 true true 30 30 270 270
 
 square 2
 false
