@@ -66,9 +66,10 @@ to go
     ask cellfunction 12 [ LightturnOFFdual ]
     ask cellfunction 13 [ LightturnONdual ]
     
-    ask TF 0 [ LightturnOFFsingle ]
-    ask TF 2 [ LightturnONdual ]
-    ask TF 3 [ LightturnOFFsingle ] 
+    ask TF 0 [ LightturnONsingle ]
+    ask TF 1 [ lightturnOFFdual ]
+    ask TF 2 [ LightturnOFFdual ]
+    ask TF 3 [ LightturnONsingle ] 
     ask patches [ if (pycor < 0 ) and (pycor > -3) [ set pcolor yellow ] ]]
   
   [ 
@@ -79,9 +80,10 @@ to go
     ask cellfunction 12 [ LightturnONdual ]
     ask cellfunction 13 [ LightturnOFFdual ]
         
-    ask TF 0 [ LightturnONsingle ]
-    ask TF 2 [ LightturnOFFdual ]
-    ask TF 3 [ LightturnONsingle ] 
+    ask TF 0 [ LightturnOFFsingle ]
+    ask TF 1 [ lightturnONdual ]
+    ask TF 2 [ LightturnONdual ]
+    ask TF 3 [ LightturnOFFsingle ] 
     ask patches [ if (pycor < 0 ) and (pycor > -3) [ set pcolor black ] ]]
     
   ifelse ( siliconCurrent > 0 and phosphorousCurrent > 0 and nitrogenCurrent > 0 ) [
@@ -91,7 +93,7 @@ to go
     ask cellfunction 12 [ NutrientturnOFFdual ]
     ask cellfunction 13 [ NutrientturnOFFdual ]
     
-    ask TF 1 [ NutrientturnOFFsingle ]
+    ask TF 1 [ NutrientturnOFFdual ]
     ask TF 2 [ NutrientturnONdual ] ]
   
   [ 
@@ -101,10 +103,12 @@ to go
     ask cellfunction 12 [ NutrientturnONdual ]
     ask cellfunction 13 [ NutrientturnONdual ]
     
-    ask TF 1 [ NutrientturnONsingle ]
+    ask TF 1 [ NutrientturnONdual ]
     ask TF 2 [ NutrientturnOFFdual ] ]
   
-  ;ask TFs [ ifelse status = 1 [ ask my-out-links [ set color green ]] [ ask my-out-links [ set color red ]] ]
+  ask TFs [ if ( color = green ) [ ask my-out-links [ ifelse [color] of other-end = green [ set color green ] [ set color 39 ] ] ] ]
+  ask TFs [ if ( color = red ) [ ask my-out-links [ ifelse [color] of other-end = red [ set color red ] [ set color 39 ] ] ] ]
+  ask TFs [ if ( color = orange ) [ ask my-out-links [ ifelse [color] of other-end = orange [ set color orange ] [ set color 39 ] ] ] ]
   
   ask diatoms [
     feed
@@ -177,13 +181,13 @@ end
 ;--------------------------------------------------------------------------------------------------------------------------
 
 to setupLinks
-  set-default-shape links "line"
+  set-default-shape links "default"
   let i 0
   repeat 4 [
     ask turtle i [ create-links-to cellFunctions ]
     set i i + 1
   ]
-  ask links [ set color black]
+  ask links [ set color 39 ]
 end
   
   
@@ -323,7 +327,7 @@ to setupTFs [ numTFs xlocation ]
     set xcor xlocation
     set ycor 3 * scalingFactor] 
   ask TF 3 [ 
-    attach-banner "SF" 0.5
+    attach-banner "E2F" 0.5
     set xcor xlocation
     set ycor 4 * scalingFactor ] 
 end
@@ -593,7 +597,7 @@ Nitrogen
 Nitrogen
 0
 nitrogenMax
-41
+42
 1
 1
 NIL
@@ -1087,8 +1091,6 @@ default
 link direction
 true
 0
-Line -2674135 false 150 150 90 180
-Line -2674135 false 150 150 210 180
 
 line
 0.0
