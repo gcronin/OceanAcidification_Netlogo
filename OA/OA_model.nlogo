@@ -441,7 +441,7 @@ end
 to feed
    set uptakeProbability random 20
     
-    ifelse ( nutrientsPresent ) [ set uptakeProbability uptakeProbability - 10 ] [ set uptakeProbability uptakeProbability + 10 ] 
+    if ( nutrientsPresent ) [ set uptakeProbability uptakeProbability - 15 ] 
     
     if ( uptakeProbability > 5 ) [
     
