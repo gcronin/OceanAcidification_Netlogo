@@ -5,11 +5,14 @@
 breed [ TFs TF ] ;Transcription Factors
 breed [ cellFunctions cellFunction ]
 breed [ banners ]
+breed [ diatoms diatom ]
+breed [ genes gene ]
 TFs-own [ statusLight statusNutrient ] ;1=on or 0=off
 cellFunctions-own [ statusLight statusNutrient] ;1=on or 0=off
-breed [ diatoms diatom ]
-diatoms-own [ N P Si health ]
-globals [ numTurtles nitrogenMax siliconMax phosphorousMax nitrogenCurrent siliconCurrent phosphorousCurrent numDiatoms growthRate pH ]
+genes-own [ statusLight statusNutrient ] ;1=on or 0=off
+diatoms-own [ N P Si health uptakeProbability ]
+
+globals [ nitrogenMax siliconMax phosphorousMax nitrogenCurrent siliconCurrent phosphorousCurrent numDiatoms growthRate pH nutrientsPresent ]
 
 
 
@@ -29,18 +32,22 @@ to setup
   
   setupPatches
   
+  
   addNitrogen
   addSilicon
   addPhosphorous
-  
-  ;Create transcription factors and cellular function in appropriate locations at top
+    
+  ;Create transcription factors, genes, cellular functions in appropriate locations at top
   let xlocation  -3 * max-pxcor / 4
-  setupTFs 4 xlocation
-  set xlocation 1 * max-pxcor / 4
-  setupCellFunctions 6 xlocation
+  setupTFs xlocation
+  set xlocation 3 * max-pxcor / 4
+  setupCellFunctions xlocation
+  set xlocation  0
+  setupGenes xlocation
   setupLinks
   
   setupDiatoms
+  
   
   reset-ticks
   
@@ -54,10 +61,11 @@ end
 to go
 
   setpH
-  ask patches [ if (light = true) and (pycor < 0 ) and (pycor > -3) [ set pcolor yellow ] ]
     
   ifelse ( CO2 = 400 ) [ set growthRate 1 ] [ set growthRate 2 ]
+  ifelse ( siliconCurrent > 0.1 * siliconMax and phosphorousCurrent > 0.1 * phosphorousMax  and nitrogenCurrent > 0.1 * nitrogenMax  ) [ set nutrientsPresent  true ] [ set nutrientsPresent  false ]
     
+  ; dusk ( end of 12hr light )
   ifelse ( Light = true ) [ 
     ask cellfunction 8 [ LightturnONdual ]
     ask cellfunction 9 [ LightturnONsingle ]
@@ -70,8 +78,14 @@ to go
     ask TF 1 [ lightturnOFFdual ]
     ask TF 2 [ LightturnOFFdual ]
     ask TF 3 [ LightturnONsingle ] 
-    ask patches [ if (pycor < 0 ) and (pycor > -3) [ set pcolor yellow ] ]]
+    
+    ask gene 20 [ lightturnONdual ]
+    ask gene 23 [ lightturnOFFdual ]
+    
+    ask patches [ if (pycor < 0 ) and (pycor > -3) [ set pcolor yellow ] ]
+  ]
   
+  ; dawn (no light)
   [ 
     ask cellfunction 8 [ LightturnOFFdual ]
     ask cellfunction 9 [ LightturnOFFsingle ]
@@ -84,9 +98,15 @@ to go
     ask TF 1 [ lightturnONdual ]
     ask TF 2 [ LightturnONdual ]
     ask TF 3 [ LightturnOFFsingle ] 
-    ask patches [ if (pycor < 0 ) and (pycor > -3) [ set pcolor black ] ]]
     
-  ifelse ( siliconCurrent > 0 and phosphorousCurrent > 0 and nitrogenCurrent > 0 ) [
+    ask gene 20 [ lightturnOFFdual ]
+    ask gene 23 [ lightturnONdual ]
+    
+    ask patches [ if (pycor < 0 ) and (pycor > -3) [ set pcolor black ] ]
+  ]
+    
+  ; exponential 
+  ifelse ( nutrientsPresent ) [
     ask cellfunction 8 [ NutrientturnONdual ]
     ask cellfunction 10 [ NutrientturnONdual ]
     ask cellfunction 11 [ NutrientturnOFFdual ]
@@ -94,8 +114,15 @@ to go
     ask cellfunction 13 [ NutrientturnOFFdual ]
     
     ask TF 1 [ NutrientturnOFFdual ]
-    ask TF 2 [ NutrientturnONdual ] ]
+    ask TF 2 [ NutrientturnONdual ] 
   
+    ask gene 20 [ NutrientturnOFFdual ]
+    ask gene 21 [ NutrientturnOFFsingle ]
+    ask gene 22 [ NutrientturnOFFsingle ]
+    ask gene 23 [ NutrientturnOFFdual ]
+  ]
+  
+  ; stationary
   [ 
     ask cellfunction 8 [ NutrientturnOFFdual ]
     ask cellfunction 10 [ NutrientturnOFFdual ]
@@ -104,11 +131,21 @@ to go
     ask cellfunction 13 [ NutrientturnONdual ]
     
     ask TF 1 [ NutrientturnONdual ]
-    ask TF 2 [ NutrientturnOFFdual ] ]
+    ask TF 2 [ NutrientturnOFFdual ] 
+    
+    ask gene 20 [ NutrientturnONdual ]
+    ask gene 21 [ NutrientturnONsingle ]
+    ask gene 22 [ NutrientturnONsingle ]
+    ask gene 23 [ NutrientturnONdual ]
+  ]
   
   ask TFs [ if ( color = green ) [ ask my-out-links [ ifelse [color] of other-end = green [ set color green ] [ set color 39 ] ] ] ]
   ask TFs [ if ( color = red ) [ ask my-out-links [ ifelse [color] of other-end = red [ set color red ] [ set color 39 ] ] ] ]
   ask TFs [ if ( color = orange ) [ ask my-out-links [ ifelse [color] of other-end = orange [ set color orange ] [ set color 39 ] ] ] ]
+  
+  ask genes [ if ( color = green ) [ ask my-out-links [ ifelse [color] of other-end = green [ set color green ] [ set color 39 ] ] ] ]
+  ask genes [ if ( color = red ) [ ask my-out-links [ ifelse [color] of other-end = red [ set color red ] [ set color 39 ] ] ] ]
+  ask genes [ if ( color = orange ) [ ask my-out-links [ ifelse [color] of other-end = orange [ set color orange ] [ set color 39 ] ] ] ]
   
   ask diatoms [
     feed
@@ -184,9 +221,16 @@ to setupLinks
   set-default-shape links "default"
   let i 0
   repeat 4 [
+    ask turtle i [ create-links-to genes ]
+    set i i + 1
+  ]
+  
+  set i 20
+  repeat 4 [
     ask turtle i [ create-links-to cellFunctions ]
     set i i + 1
   ]
+  
   ask links [ set color 39 ]
 end
   
@@ -199,56 +243,136 @@ end
 to setupDiatoms
   set-default-shape diatoms "diatoms"
   create-diatoms numDiatoms
-  let i 20
+  let i 28
   repeat numDiatoms [ ask diatom i [ 
       setxy random-xcor (-1)* ( random (max-pycor - 2) + 3 )
       set i i + 1 ]]
 
 end
 
+;--------------------------------------------------------------------------------------------------------------------------
+; CREATE GENES
+;--------------------------------------------------------------------------------------------------------------------------
+
+to setupGenes [ xlocation ]
+  let numberGenes 4
+  let scalingFactor max-pycor / 2 / ( numberGenes - 1.8  )  ;last number is a fudge factor which spreads the cellFunctions evenly vertically
+  create-genes numberGenes
+  ask genes [ 
+    set shape "pentagon"
+    set color yellow
+    set size 3   
+    set label-color black ]
+  ask gene 20 [ 
+    attach-banner "PTP1" 3  ;Turtle 24
+    set xcor xlocation
+    set ycor 1 * scalingFactor ]
+  ask gene 21 [ 
+    attach-banner "SIT1" 3  ;Turtle 25
+    set xcor xlocation
+    set ycor 2 * scalingFactor ]
+  ask gene 22 [ 
+    attach-banner "NRT1" 3  ;Turtle 26
+    set xcor xlocation
+    set ycor 3 * scalingFactor ]
+  ask gene 23 [ 
+    attach-banner "NRT3" 3  ;Turtle 27
+    set xcor xlocation
+    set ycor 4 * scalingFactor ]
+end
 
 ;--------------------------------------------------------------------------------------------------------------------------
 ; CREATE CELL FUNCTIONS
 ;--------------------------------------------------------------------------------------------------------------------------
-to setupCellFunctions [ numFunctions xlocation ]
-  
-  let scalingFactor max-pycor / 2 / ( numFunctions - 2.8 )
+to setupCellFunctions [ xlocation ]
+  let numFunctions 6
+  let scalingFactor max-pycor / 2 / ( numFunctions - 2.8 )   ;last number is a fudge factor which spreads the cellFunctions evenly vertically
   create-cellFunctions numFunctions
   ask cellFunctions [ 
     set shape "circle"
     set color orange
     set size 2.5 
     set label-color black ]
-  ask cellFunction (numTurtles + 1) [ 
-    attach-banner "Make Glucose" 1.5
+  ask cellFunction 8 [ 
+    attach-banner "Make Glucose" 1.5 ;Turtle 14
     set xcor xlocation
     set ycor scalingFactor ] 
-  ask cellFunction (numTurtles + 2) [ 
-    attach-banner "Maintain DNA" 1.5
+  ask cellFunction 9 [ 
+    attach-banner "Maintain DNA" 1.5 ;Turtle 15
     set xcor xlocation
     set ycor 2 * scalingFactor ] 
-   ask cellFunction (numTurtles + 3) [ 
-    attach-banner "Divide!" 0.8
+   ask cellFunction 10 [ 
+    attach-banner "Divide!" 0.8  ;Turtle 16
     set xcor xlocation
     set ycor 3 * scalingFactor ] 
-  ask cellFunction (numTurtles + 4) [ 
-    attach-banner "Transport P" 1.2
+  ask cellFunction 11 [ 
+    attach-banner "Transport P" 1.2  ;Turtle 17
     set xcor xlocation
     set ycor 4 * scalingFactor] 
-  ask cellFunction (numTurtles + 5) [ 
-    attach-banner "Transport N" 1.2
+  ask cellFunction 12 [ 
+    attach-banner "Transport N" 1.2  ;Turtle 18
     set xcor xlocation
     set ycor 5 * scalingFactor ] 
-  ask cellFunction (numTurtles + 6) [ 
-    attach-banner "Transport Si" 1.2
+  ask cellFunction 13 [ 
+    attach-banner "Transport Si" 1.2   ;Turtle 19
     set xcor xlocation
     set ycor 6 * scalingFactor] 
-  set numTurtles numTurtles + numFunctions
 end
 
 
 ;--------------------------------------------------------------------------------------------------------------------------
-; TRANSCRIPTION FACTOR FUNCTIONS
+; CREATE TRANSCRIPTION FACTORS
+;--------------------------------------------------------------------------------------------------------------------------
+
+; Create the 4 transcription factors, attach labels, and position appropriately 
+to setupTFs [ xlocation ]
+  let numTFs 4
+  let scalingFactor max-pycor / 2 / ( numTFs - 1.8 )  ;last number is a fudge factor which spreads the cellFunctions evenly vertically
+  create-TFs numTFs  
+  ask TFs [ 
+    set size 3
+    set label-color black
+    set shape "square"
+    set color white ]
+  ask TF 0 [ 
+    attach-banner "Myb" 0.5  ;Turtle 4
+    set xcor xlocation
+    set ycor 1 * scalingFactor ]
+  ask TF 1 [ 
+    attach-banner "HSF" 0.5  ;Turtle 5
+    set xcor xlocation
+    set ycor 2 * scalingFactor ]
+  ask TF 2 [ 
+    attach-banner "bZip" 0.5 ;Turtle 6
+    set xcor xlocation
+    set ycor 3 * scalingFactor] 
+  ask TF 3 [ 
+    attach-banner "E2F" 0.5  ;Turtle 7
+    set xcor xlocation
+    set ycor 4 * scalingFactor ] 
+end
+
+
+;--------------------------------------------------------------------------------------------------------------------------
+; LABELS (BANNERS)
+;--------------------------------------------------------------------------------------------------------------------------
+; creates a banner turtle with a label, moves that turtle relative to the object it's attached to.
+to attach-banner [labelname offset]  
+  hatch-banners 1 [
+    set size 0
+    set label labelname
+    create-link-from myself [   ;this works because the agent calling it is the turtle to which it will be attached (myself)
+      tie
+      hide-link
+    ]
+    set heading 90
+    fd offset
+  ]
+end
+
+
+;--------------------------------------------------------------------------------------------------------------------------
+; REGULATION
 ;--------------------------------------------------------------------------------------------------------------------------
 ; Change appearance of Transcription Factors/Cell Functions to make them appear on or off  
 to NutrientturnONdual
@@ -304,47 +428,6 @@ to setSizeShapeSingleRegulated
   if ( statusNutrient + statusLight = 0 ) [ set color red ]
 end
 
-; Create the 4 transcription factors, attach labels, and position appropriately 
-to setupTFs [ numTFs xlocation ]
-  set numTurtles 2 * numTFs - 1
-  let scalingFactor max-pycor / 2 / ( numTFs - 1.8 )
-  create-TFs numTFs  
-  ask TFs [ 
-    set size 3
-    set label-color black
-    set shape "square"
-    set color white ]
-  ask TF 0 [ 
-    attach-banner "Myb" 0.5
-    set xcor xlocation
-    set ycor 1 * scalingFactor ]
-  ask TF 1 [ 
-    attach-banner "HSF" 0.5
-    set xcor xlocation
-    set ycor 2 * scalingFactor ]
-  ask TF 2 [ 
-    attach-banner "bZip" 0.5
-    set xcor xlocation
-    set ycor 3 * scalingFactor] 
-  ask TF 3 [ 
-    attach-banner "E2F" 0.5
-    set xcor xlocation
-    set ycor 4 * scalingFactor ] 
-end
-
-; creates a banner turtle with a label, moves that turtle relative to the object it's attached to.
-to attach-banner [labelname offset]  
-  hatch-banners 1 [
-    set size 0
-    set label labelname
-    create-link-from myself [   ;this works because the agent calling it is the turtle to which it will be attached (myself)
-      tie
-      hide-link
-    ]
-    set heading 90
-    fd offset
-  ]
-end
 
 
 ;--------------------------------------------------------------------------------------------------------------------------
@@ -356,26 +439,33 @@ end
 ; EAT NUTRIENTS
 ;--------------------------------------------------------------------------------------------------------------------------
 to feed
-    if pcolor = 15 [ 
-      set N ( N + 1 )
-      set nitrogenCurrent ( nitrogenCurrent - 1)
-      ask patch-here [ set pcolor blue set plabel "" ]
-    ]
-    if pcolor = 116 [ 
-      set Si ( Si + 1 )
-      set siliconCurrent ( siliconCurrent  - 1 )
-      ask patch-here [ set pcolor blue set plabel "" ]
-    ]
-    if pcolor = 27 [ 
-      set P ( P + 1 )
-      set phosphorousCurrent ( phosphorousCurrent  - 1 )
-      ask patch-here [ set pcolor blue set plabel "" ]
+   set uptakeProbability random 20
+    
+    ifelse ( nutrientsPresent ) [ set uptakeProbability uptakeProbability - 10 ] [ set uptakeProbability uptakeProbability + 10 ] 
+    
+    if ( uptakeProbability > 5 ) [
+    
+      if pcolor = 15 [ 
+        set N ( N + 1 )
+        set nitrogenCurrent ( nitrogenCurrent - 1)
+        ask patch-here [ set pcolor blue set plabel "" ]
+      ]
+      if pcolor = 116 [ 
+        set Si ( Si + 1 )
+        set siliconCurrent ( siliconCurrent  - 1 )
+        ask patch-here [ set pcolor blue set plabel "" ]
+      ]
+      if pcolor = 27 [ 
+        set P ( P + 1 )
+        set phosphorousCurrent ( phosphorousCurrent  - 1 )
+        ask patch-here [ set pcolor blue set plabel "" ]
+      ]
     ]
 end
 
 
 ;--------------------------------------------------------------------------------------------------------------------------
-; ADD NUTRIENTS
+; MOVE
 ;--------------------------------------------------------------------------------------------------------------------------
 to move
     fd 1
@@ -394,6 +484,8 @@ to reproduce
       set P ( P - 1 )
       set Si ( Si - 1 ) ]  
 end
+
+
 @#$#@#$#@
 GRAPHICS-WINDOW
 210
