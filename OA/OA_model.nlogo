@@ -10,9 +10,9 @@ breed [ genes gene ]
 TFs-own [ statusLight statusNutrient ] ;1=on or 0=off
 cellFunctions-own [ statusLight statusNutrient] ;1=on or 0=off
 genes-own [ statusLight statusNutrient ] ;1=on or 0=off
-diatoms-own [ N P Si health uptakeProbability ]
+diatoms-own [ N P Si health uptakeProbability growthRate ]
 
-globals [ nitrogenMax siliconMax phosphorousMax nitrogenCurrent siliconCurrent phosphorousCurrent numDiatoms growthRate pH nutrientsPresent initialHealth ]
+globals [ nitrogenMax siliconMax phosphorousMax nitrogenCurrent siliconCurrent phosphorousCurrent numDiatoms pH nutrientsPresent initialHealth ]
 
 
 
@@ -26,15 +26,12 @@ to setup
   
   set initialHealth 700
   set numDiatoms 2   ;actually each represents 5
-  set growthRate 1
   set nitrogenMax 20
   set siliconMax 20
   set phosphorousMax 20
   setpH
   
   setupPatches
-  
-  
   addNitrogen
   addSilicon
   addPhosphorous
@@ -65,8 +62,8 @@ to go
   if count diatoms = 0 [ stop ]
   setpH
     
-  ifelse ( CO2 = 400 ) [ set growthRate 1 ] [ set growthRate 1 ]
-  ifelse ( siliconCurrent > 0.1 * siliconMax and phosphorousCurrent > 0.1 * phosphorousMax  and nitrogenCurrent > 0.1 * nitrogenMax  ) [ set nutrientsPresent  true ] [ set nutrientsPresent  false ]
+  ;ifelse ( CO2 = 400 ) [ set growthRate 1 ] [ set growthRate 1 ]
+  ifelse ( siliconCurrent > 0.1 * siliconMax and phosphorousCurrent > 0.1 * phosphorousMax  and nitrogenCurrent > 0.1 * nitrogenMax  ) [ set nutrientsPresent  true ] [ set nutrientsPresent  false ] ;10% threshold for low nutrients
     
   ; dusk ( end of 12hr light )
   ifelse ( Light = true ) [ 
@@ -154,7 +151,7 @@ to go
     feed
     move
     reproduce
-    if health < 0 [ die ]
+    death_check
   ]
   
  tick
@@ -487,13 +484,17 @@ end
 ; REPRODUCE IF THERE IS LIGHT AND NUTRIENTS AVAILABLE
 ;--------------------------------------------------------------------------------------------------------------------------
 to reproduce  
-  if ( light = true AND N > 0 AND Si > 0 ) [
+  if ( light = true AND ( Si > 0 OR N > 0 OR P > 0) ) [
+      ifelse ( Si = 0 ) [ set growthRate 0 ] [ set growthRate 1 ]
       hatch growthRate [ set N 0  set P 0 set Si 0 set heading ( random 360 ) fd 5 set health initialHealth ]
       set N ( N - 1 )
       set P ( P - 1 )
-      set Si ( Si - 1 ) ]  
+      set Si ( Si - 1 ) 
+    ]  
+
 end
 
+; turtles die if health is too low, and can possibly redistribute some amount of their stored nutrients
 to death_check
   if ( health < 0 ) [ 
     repeat N [  ask one-of patches [ ifelse ( pcolor = 15 OR pcolor = 116 OR pcolor = 27 OR pycor > -3 ) [] [ set pcolor 15 set plabel-color black  set plabel "N" set nitrogenCurrent nitrogenCurrent + 1 ]  ] ]
@@ -667,7 +668,7 @@ SLIDER
 355
 Nitrogen
 Nitrogen
-0
+1
 nitrogenMax
 20
 1
@@ -684,7 +685,7 @@ Silicon
 Silicon
 0
 siliconMax
-20
+0
 1
 1
 NIL
@@ -697,9 +698,9 @@ SLIDER
 456
 Phosphorous
 Phosphorous
-0
+1
 phosphorousMax
-20
+19
 1
 1
 NIL
