@@ -7,6 +7,7 @@ breed [ cellFunctions cellFunction ]
 breed [ banners ]
 breed [ diatoms diatom ]
 breed [ genes gene ]
+breed [CO2s CO2]     ;; packets of carbon dioxide
 TFs-own [ statusLight statusNutrient ] ;1=on or 0=off
 cellFunctions-own [ statusLight statusNutrient] ;1=on or 0=off
 genes-own [ statusLight statusNutrient ] ;1=on or 0=off
@@ -29,7 +30,6 @@ to setup
   set nitrogenMax 20
   set siliconMax 20
   set phosphorousMax 20
-  setpH
   
   setupPatches
   addNitrogen
@@ -46,7 +46,8 @@ to setup
   setupLinks
   
   setupDiatoms
-  
+  if CarbonDioxide = 400 [ addCO2 13  ]
+  if CarbonDioxide = 800 [ addCO2 25 ]
   
   reset-ticks
   
@@ -60,8 +61,7 @@ end
 to go
 
   if count diatoms = 0 [ stop ]
-  setpH
-    
+      
   ;ifelse ( CO2 = 400 ) [ set growthRate 1 ] [ set growthRate 1 ]
   ifelse ( siliconCurrent > 0.1 * siliconMax and phosphorousCurrent > 0.1 * phosphorousMax  and nitrogenCurrent > 0.1 * nitrogenMax  ) [ set nutrientsPresent  true ] [ set nutrientsPresent  false ] ;10% threshold for low nutrients
     
@@ -155,6 +155,10 @@ to go
     ;death_check
   ]
   
+  set-current-plot "pH"
+  set-current-plot-pen "pH"
+  plot ((count CO2s * -.005035) + 8.630)
+  
  tick
   
 end
@@ -172,13 +176,6 @@ to setupPatches  ;Setup Patches:  Grey at top, black line in middle, sunlight or
   ask patches [ if (pycor <= -3 ) and (pycor >= min-pycor) [ set pcolor blue ]]
 end
 
-;--------------------------------------------------------------------------------------------------------------------------
-; Set pH
-;--------------------------------------------------------------------------------------------------------------------------
-to setpH
-  if CO2 = 400 [ set pH 8.5 ]
-  if CO2 = 800 [ set pH 7.5 ]
-end
 
 ;--------------------------------------------------------------------------------------------------------------------------
 ; ADD NUTRIENTS
@@ -235,8 +232,30 @@ to setupLinks
   
   ask links [ set color 39 ]
 end
-  
-  
+
+
+;--------------------------------------------------------------------------------------------------------------------------
+; CREATE/REMOVE CARBON DIOXIDE
+;--------------------------------------------------------------------------------------------------------------------------
+ to addCO2 [ numCO2 ]
+  set-default-shape CO2s "dot"
+  create-CO2s numCO2 [
+    set color yellow
+    ;; pick a random position in the sky area
+    setxy random-xcor
+          (-1)* ( random (max-pycor - 2) + 3 )
+  ]
+end
+ 
+ to remove-CO2 ;; randomly remove 1 CO2 molecule
+  repeat 1 [
+    if any? CO2s [ 
+          
+      ask one-of CO2s [ die ]
+    ]
+  ]
+end
+
 
 ;--------------------------------------------------------------------------------------------------------------------------
 ; CREATE DIATOMS
@@ -490,6 +509,7 @@ to reproduce
       set N ( N - 0.2 )
       set P ( P - 0 )
       set Si ( Si - 2 ) 
+      remove-CO2
     ]  
 
 end
@@ -641,7 +661,7 @@ true
 false
 "" ""
 PENS
-"default" 1.0 0 -16777216 true "" "plot CO2"
+"default" 1.0 0 -16777216 true "" "plot count CO2s"
 
 PLOT
 824
@@ -653,13 +673,13 @@ NIL
 NIL
 0.0
 10.0
-6.0
+7.5
 9.0
 true
 false
 "" ""
 PENS
-"pen-0" 1.0 0 -7500403 true "" "plot pH"
+"pH" 1.0 0 -7500403 true "" ""
 
 SLIDER
 15
@@ -685,7 +705,7 @@ Silicon
 Silicon
 0
 siliconMax
-0
+20
 1
 1
 NIL
@@ -709,10 +729,10 @@ HORIZONTAL
 SLIDER
 9
 200
-181
+190
 233
-CO2
-CO2
+CarbonDioxide
+CarbonDioxide
 400
 800
 800
