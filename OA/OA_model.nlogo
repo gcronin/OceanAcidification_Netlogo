@@ -487,7 +487,7 @@ end
 ; REPRODUCE IF THERE IS LIGHT AND NUTRIENTS AVAILABLE
 ;--------------------------------------------------------------------------------------------------------------------------
 to reproduce  
-  if ( light = true AND N > 0 AND Si > 0 AND P > 0 ) [
+  if ( light = true AND N > 0 AND Si > 0 ) [
       hatch growthRate [ set N 0  set P 0 set Si 0 set heading ( random 360 ) fd 5 set health initialHealth ]
       set N ( N - 1 )
       set P ( P - 1 )
