@@ -12,7 +12,7 @@ cellFunctions-own [ statusLight statusNutrient] ;1=on or 0=off
 genes-own [ statusLight statusNutrient ] ;1=on or 0=off
 diatoms-own [ N P Si health uptakeProbability ]
 
-globals [ nitrogenMax siliconMax phosphorousMax nitrogenCurrent siliconCurrent phosphorousCurrent numDiatoms growthRate pH nutrientsPresent ]
+globals [ nitrogenMax siliconMax phosphorousMax nitrogenCurrent siliconCurrent phosphorousCurrent numDiatoms growthRate pH nutrientsPresent initialHealth ]
 
 
 
@@ -23,11 +23,13 @@ globals [ nitrogenMax siliconMax phosphorousMax nitrogenCurrent siliconCurrent p
 to setup
   clear-all
   
-  set numDiatoms 5
+  
+  set initialHealth 700
+  set numDiatoms 2   ;actually each represents 5
   set growthRate 1
-  set nitrogenMax 100
-  set siliconMax 50
-  set phosphorousMax 25
+  set nitrogenMax 20
+  set siliconMax 20
+  set phosphorousMax 20
   setpH
   
   setupPatches
@@ -60,9 +62,10 @@ end
 
 to go
 
+  if count diatoms = 0 [ stop ]
   setpH
     
-  ifelse ( CO2 = 400 ) [ set growthRate 1 ] [ set growthRate 2 ]
+  ifelse ( CO2 = 400 ) [ set growthRate 1 ] [ set growthRate 1 ]
   ifelse ( siliconCurrent > 0.1 * siliconMax and phosphorousCurrent > 0.1 * phosphorousMax  and nitrogenCurrent > 0.1 * nitrogenMax  ) [ set nutrientsPresent  true ] [ set nutrientsPresent  false ]
     
   ; dusk ( end of 12hr light )
@@ -151,9 +154,10 @@ to go
     feed
     move
     reproduce
+    if health < 0 [ die ]
   ]
-
-  tick
+  
+ tick
   
 end
 
@@ -243,6 +247,7 @@ end
 to setupDiatoms
   set-default-shape diatoms "diatoms"
   create-diatoms numDiatoms
+  ask diatoms [ set health initialHealth ]
   let i 28
   repeat numDiatoms [ ask diatom i [ 
       setxy random-xcor (-1)* ( random (max-pycor - 2) + 3 )
@@ -441,7 +446,7 @@ end
 to feed
    set uptakeProbability random 20
     
-    if ( nutrientsPresent ) [ set uptakeProbability uptakeProbability - 15 ] 
+    if ( nutrientsPresent ) [ set uptakeProbability uptakeProbability - 10 ] 
     
     if ( uptakeProbability > 5 ) [
     
@@ -449,16 +454,19 @@ to feed
         set N ( N + 1 )
         set nitrogenCurrent ( nitrogenCurrent - 1)
         ask patch-here [ set pcolor blue set plabel "" ]
+        set health health + 20 
       ]
       if pcolor = 116 [ 
         set Si ( Si + 1 )
         set siliconCurrent ( siliconCurrent  - 1 )
         ask patch-here [ set pcolor blue set plabel "" ]
+        set health health + 20 
       ]
       if pcolor = 27 [ 
         set P ( P + 1 )
         set phosphorousCurrent ( phosphorousCurrent  - 1 )
         ask patch-here [ set pcolor blue set plabel "" ]
+        set health health + 20 
       ]
     ]
 end
@@ -471,6 +479,7 @@ to move
     fd 1
     if ycor > -3 [ set ycor (-1) * (random (max-pycor - 2) + 3 )] 
     if ycor < (min-pycor ) [ set ycor (-1) * (random (max-pycor - 2) + 3 ) ] 
+    set health health - 1
 end
     
   
@@ -479,13 +488,20 @@ end
 ;--------------------------------------------------------------------------------------------------------------------------
 to reproduce  
   if ( light = true AND N > 0 AND Si > 0 AND P > 0 ) [
-      hatch growthRate [ set N 0  set P 0 set Si 0 set heading ( random 360 ) fd 5 ]
+      hatch growthRate [ set N 0  set P 0 set Si 0 set heading ( random 360 ) fd 5 set health initialHealth ]
       set N ( N - 1 )
       set P ( P - 1 )
       set Si ( Si - 1 ) ]  
 end
 
-
+to death_check
+  if ( health < 0 ) [ 
+    repeat N [  ask one-of patches [ ifelse ( pcolor = 15 OR pcolor = 116 OR pcolor = 27 OR pycor > -3 ) [] [ set pcolor 15 set plabel-color black  set plabel "N" set nitrogenCurrent nitrogenCurrent + 1 ]  ] ]
+    repeat P [ ask one-of patches [ ifelse ( pcolor = 15 OR pcolor = 116 OR pcolor = 27 OR pycor > -3 ) [] [ set pcolor 116 set plabel-color black  set plabel "Si" set siliconCurrent siliconCurrent + 1 ]  ] ]
+    repeat Si [ ask one-of patches [ ifelse ( pcolor = 15 OR pcolor = 116 OR pcolor = 27 OR pycor > -3 ) [] [ set pcolor 27 set plabel-color black  set plabel "P" set nitrogenCurrent phosphorousCurrent + 1 ]  ] ]
+    die
+  ]
+end
 @#$#@#$#@
 GRAPHICS-WINDOW
 210
@@ -508,8 +524,8 @@ GRAPHICS-WINDOW
 13
 -17
 17
-0
-0
+1
+1
 1
 ticks
 30.0
@@ -581,7 +597,7 @@ NIL
 0.0
 10.0
 0.0
-100.0
+10.0
 true
 false
 "" ""
@@ -589,42 +605,6 @@ PENS
 "Nitrogen" 1.0 0 -2674135 true "" "plot nitrogenCurrent"
 "Phosphorous" 1.0 0 -8630108 true "" "plot phosphorousCurrent"
 "Silicon" 1.0 0 -612749 true "" "plot siliconCurrent"
-
-PLOT
-830
-193
-1030
-343
-Phosphorous
-time
-Phosphorous
-0.0
-10.0
-0.0
-100.0
-true
-false
-"" ""
-PENS
-"default" 1.0 0 -16777216 true "" "plot phosphorousCurrent"
-
-PLOT
-830
-360
-1030
-510
-Silicon
-NIL
-NIL
-0.0
-10.0
-0.0
-100.0
-true
-false
-"" ""
-PENS
-"default" 1.0 0 -16777216 true "" "plot siliconCurrent"
 
 PLOT
 1068
@@ -642,13 +622,13 @@ true
 false
 "" ""
 PENS
-"Diatoms" 1.0 0 -16777216 true "" "plot count Diatoms"
+"Diatoms" 1.0 0 -16777216 true "" "plot (count Diatoms * 5 )"
 
 PLOT
-833
-525
-1033
-675
+822
+194
+1022
+344
 Carbon Dioxide
 NIL
 NIL
@@ -689,7 +669,7 @@ Nitrogen
 Nitrogen
 0
 nitrogenMax
-42
+20
 1
 1
 NIL
@@ -697,14 +677,14 @@ HORIZONTAL
 
 SLIDER
 14
-441
+374
 186
-474
+407
 Silicon
 Silicon
 0
 siliconMax
-16
+20
 1
 1
 NIL
@@ -712,69 +692,18 @@ HORIZONTAL
 
 SLIDER
 14
-579
+423
 186
-612
+456
 Phosphorous
 Phosphorous
 0
 phosphorousMax
-9
+20
 1
 1
 NIL
 HORIZONTAL
-
-BUTTON
-38
-284
-155
-317
-Add Nitrogen
-addNitrogen
-NIL
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-1
-
-BUTTON
-49
-400
-153
-433
-Add Silicon
-addSilicon
-NIL
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-1
-
-BUTTON
-29
-538
-175
-571
-Add Phosphorous
-addPhosphorous
-NIL
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-1
 
 SLIDER
 9
