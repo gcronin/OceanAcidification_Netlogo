@@ -11,8 +11,11 @@ breed [ nodes ]
 breed [ edges ]
 breed [ edge-heads ]
 breed [ edge-bodies ]
+breed [ membranes ]
 
 globals [ cycc-ko-status  ]
+
+membranes-own [ name ]
 
 nodes-own [ name amount in-edges out-edges knockedout? nodetype ]
 
@@ -26,12 +29,25 @@ edge-bodies-own [ parent-edge ]
 
 to setup
   clear-all
-  ask patches [ set pcolor 39 ]   ;; set background color
+  ask patches [ set pcolor 88 ]   ;; set background color
+  setup-membranes
   setup-nodes
   setup-edges
   
+  ;; DNA Turtle
+  crt 1 [ set heading 0 set size 9 set shape "spiral" set color black setxy (0.6 * max-pxcor) (-0.1 * max-pycor) ]
 end
 
+
+
+to setup-membranes
+  create-membranes 4
+  set-default-shape membranes "square 3"
+  ask membranes with [ who = 0 ] [ set name "cell" setxy (0 * max-pxcor) (0 * max-pycor) set color black set size 2.5 * max-pycor set heading 0 ]
+  ask membranes with [ who = 1 ] [ set name "chloroplast" setxy (-0.25 * max-pxcor) (-0.3 * max-pycor) set color black set size 1.7 * max-pycor set heading 90]
+  ask membranes with [ who = 2 ] [ set name "plastid" set shape "square 4" setxy (-0.25 * max-pxcor) (-0.48 * max-pycor) set color black set size 1.6 * max-pycor set heading 90]
+  ask membranes with [ who = 3 ] [ set name "nucleus" setxy (0.6 * max-pxcor) (-0.1 * max-pycor) set color black set size 0.8 * max-pycor set heading 90]
+end
 
 
 to setup-nodes
@@ -39,7 +55,7 @@ to setup-nodes
   
   
   ;; create the nodes
-  create-nodes 2
+  create-nodes 5
     [ set in-edges []
       set out-edges []
       set knockedout? false 
@@ -48,22 +64,39 @@ to setup-nodes
   ;; customize individual nodes
   
   ;; CO2
-  ask nodes with [ who = 0 ] [ set name "CO2" 
+  ask nodes with [ who = 4 ] [ set name "CO2" 
                                set nodetype "control"
-                               setxy (0.2 * max-pxcor) (0.8 * max-pycor) 
+                               setxy (0.2 * max-pxcor) (0.9 * max-pycor) 
                                set amount CO2-amount
                                ]      
   
-  ask nodes with [ who = 1 ] [ set name "CYCc" 
+  ask nodes with [ who = 5 ] [ set name "CYCc" 
                                set nodetype "protein"
-                               setxy (-0.2 * max-pxcor) (0.6 * max-pycor)                               
+                               setxy (0.4 * max-pxcor) (0.45 * max-pycor)                               
                                ]   
   
+    ask nodes with [ who = 6 ] [ set name "cAMP" 
+                               set nodetype "messenger"
+                               setxy (0.8 * max-pxcor) (0.35 * max-pycor)                               
+                               ]   
+    
+    ask nodes with [ who = 7 ] [ set name "Transcription Factor" 
+                               set nodetype "protein"
+                               setxy (0.45 * max-pxcor) (0 * max-pycor)                               
+                               ]    
+    
+    ask nodes with [ who = 8 ] [ set name "Gamma Carbonic Anhydrase" 
+                               set nodetype "protein"
+                               setxy (0 * max-pxcor) (0.3 * max-pycor)                               
+                               ]  
+      
+      
   
   
    ;; set shapes 
   ask nodes with [ nodetype = "control" ] [ set shape "triangle" ]
   ask nodes with [ nodetype = "protein" ] [ set shape "square" ]
+  ask nodes with [ nodetype = "messenger" ] [ set shape "pentagon" ]
   
   ;; set general node variables  
   ask nodes [set label name 
@@ -80,7 +113,10 @@ to setup-edges
   set-default-shape edge-bodies "edge-bodies"
   
    ;; define node connections
-  ask nodes with [ name = "CO2" ] [ connect-to (turtle 1) "catalytic" ]
+  ask nodes with [ name = "CO2" ] [ connect-to (turtle 5) "sensing" ]
+  ask nodes with [ name = "CYCc" ] [ connect-to (turtle 6) "signaling" ]
+  ask nodes with [ name = "cAMP" ] [ connect-to (turtle 7) "signaling" ]
+  ask nodes with [ name = "Transcription Factor" ] [ connect-to (turtle 8) "signaling" ]
   
 end
 
@@ -90,8 +126,8 @@ to connect-to [other-node edge-type]  ;; node procedure
     [ set label ""
       
       ;; set edge color
-      if edge-type = "catalytic" [ set color red ]
-      if edge-type = "metabolitic" [ set color green ]
+      if edge-type = "sensing" [ set color red ]
+      if edge-type = "signaling" [ set color blue ]
       
       ;; set edge direction
       set from myself
@@ -142,6 +178,8 @@ end
 
 
 
+
+
 ;; ***** RUNTIME PROCEDURES *****
 
 to go
@@ -154,11 +192,16 @@ end
 
 
 to update-nodes 
-  ask nodes with [ name = "CO2" ] [ set amount CO2-amount / 8 ] 
+  wait .1 ;; put in artificial delay
+  ask nodes with [ name = "CO2" ] [ set amount CO2-amount / 10 ] 
  
   wait .1 ;; put in artificial delay
-  ask nodes with [ name = "sol. CYCc" ] [ ifelse knockedout? = true [ set amount 0 ]  
-                                  [ set amount ((100  * (CO2-amount + 20)) / 100) ]]
+  ask nodes with [ name = "CYCc" ] [ ifelse knockedout? = true [ set amount 0 ]  
+                                  [ set amount CO2-amount / 8 ]]
+  
+  wait .1 ;; put in artificial delay
+  ask nodes with [ name = "Transcription Factor" ] [ ifelse knockedout? = true [ set amount 0 ]  
+                                  [ set amount CO2-amount / 8 ]]
  
   ask nodes [ update-display ]
 end
@@ -171,14 +214,14 @@ to update-display ;; node procedure
   ;; set colors
   ifelse knockedout? = true [ set color 39 ] [
     if nodetype = "control"  [ set color scale-color yellow amount 220 -20]
-    if nodetype = "protein"  [ set color white ]
-    if nodetype = "metabolite" [ ;;set color scale-color orange amount 220 -20 ]
-                                  if name = "geranylGeranylPP" [ set color scale-color 29 amount 570 -20 ]
-                                  if name = "phytoene" [ set color scale-color 19 amount 470 -20 ]
-                                  if name = "lycopene" [ set color scale-color red amount 280 -20 ]
-                                  if name = "betaCarotene" [ set color scale-color orange amount 280 -20 ]
-                                  if name = "retinal" [ set color scale-color yellow amount 300 -20 ]
-                               ]
+    if nodetype = "protein"  [ set color scale-color green amount 220 -20 ]
+    if nodetype = "messenger" [ set color scale-color orange amount 220 -20 ]
+                                  ;;if name = "geranylGeranylPP" [ set color scale-color 29 amount 570 -20 ]
+                                  ;;if name = "phytoene" [ set color scale-color 19 amount 470 -20 ]
+                                  ;;if name = "lycopene" [ set color scale-color red amount 280 -20 ]
+                                  ;;if name = "betaCarotene" [ set color scale-color orange amount 280 -20 ]
+                                  ;;if name = "retinal" [ set color scale-color yellow amount 300 -20 ]
+                              ;; ]
     if nodetype = "bacterioRhodopsin" [ set color scale-color violet amount 220 -20 ]]
 end
 
@@ -189,32 +232,32 @@ end
 ;; ***** KNOCKOUT PROCEDURES *****
 
 to knockout [ nodename ]
-  if nodename = "CYCc" [ toggle-bat true set cycc-ko-status true]
+  if nodename = "CYCc" [ toggle-CYCc true set cycc-ko-status true]
 end
 
 
 to reactivate [ nodename ] 
-  if nodename = "CYCc" [ toggle-bat false set cycc-ko-status false ]
+  if nodename = "CYCc" [ toggle-CYCc false set cycc-ko-status false ]
 
   
-  if cycc-ko-status = true [ toggle-bat true ]
+  if cycc-ko-status = true [ toggle-CYCc true ]
 
 end
 
-to toggle-bat [ change-value ]
- ;;ask nodes with [ name = "bat" or
+to toggle-CYCc [ change-value ]
+ ask nodes with [ name = "CYCc" ] [ set knockedout? change-value ] 
   ;;                 name = "crtb1" or
-                  ;;               name = "bacterioRhodopsin" ] [ set knockedout? change-value ] 
+                                
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
-362
-10
-801
-470
+369
+24
+1075
+751
 16
 16
-13.0
+21.1
 1
 10
 1
@@ -235,10 +278,10 @@ ticks
 30.0
 
 SLIDER
-17
-30
-286
-63
+15
+29
+284
+62
 CO2-amount
 CO2-amount
 200
@@ -250,10 +293,10 @@ ppm
 HORIZONTAL
 
 BUTTON
-75
-85
-142
-118
+79
+168
+146
+201
 NIL
 setup
 NIL
@@ -267,10 +310,10 @@ NIL
 1
 
 BUTTON
-162
-86
-225
-119
+166
+169
+229
+202
 NIL
 go
 T
@@ -284,10 +327,10 @@ NIL
 1
 
 BUTTON
-14
-139
-141
-172
+18
+222
+145
+255
 knockout CYCc
 knockout \"CYCc\"
 NIL
@@ -301,10 +344,10 @@ NIL
 1
 
 BUTTON
-162
-139
-308
-172
+166
+222
+312
+255
 NIL
 reactivate \"CYCc\"
 NIL
@@ -316,6 +359,21 @@ NIL
 NIL
 NIL
 1
+
+SLIDER
+17
+78
+285
+111
+IBMX-amount
+IBMX-amount
+0
+100
+50
+1
+1
+%
+HORIZONTAL
 
 @#$#@#$#@
 ## WHAT IS IT?
@@ -597,6 +655,45 @@ Polygon -1 true true 195 285 210 285 210 240 240 210 195 210
 Polygon -7500403 true false 276 85 285 105 302 99 294 83
 Polygon -7500403 true false 219 85 210 105 193 99 201 83
 
+spiral
+true
+0
+Line -7500403 true 105 45 120 60
+Line -7500403 true 120 60 150 75
+Line -7500403 true 150 75 165 75
+Line -7500403 true 165 75 180 60
+Line -7500403 true 180 60 150 45
+Line -7500403 true 150 45 135 45
+Line -7500403 true 135 45 105 90
+Line -7500403 true 105 90 120 105
+Line -7500403 true 120 105 150 120
+Line -7500403 true 150 120 165 120
+Line -7500403 true 165 120 180 105
+Line -7500403 true 180 105 150 90
+Line -7500403 true 150 90 135 90
+Line -7500403 true 135 90 105 135
+Line -7500403 true 105 135 120 150
+Line -7500403 true 120 150 150 165
+Line -7500403 true 150 165 165 165
+Line -7500403 true 165 165 180 150
+Line -7500403 true 180 150 150 135
+Line -7500403 true 150 135 135 135
+Line -7500403 true 135 135 105 180
+Line -7500403 true 105 180 120 195
+Line -7500403 true 120 195 150 210
+Line -7500403 true 150 210 165 210
+Line -7500403 true 165 210 180 195
+Line -7500403 true 180 195 150 180
+Line -7500403 true 150 180 135 180
+Line -7500403 true 135 180 105 225
+Line -7500403 true 105 225 120 240
+Line -7500403 true 120 240 150 255
+Line -7500403 true 150 255 165 255
+Line -7500403 true 165 255 180 240
+Line -7500403 true 180 240 150 225
+Line -7500403 true 150 225 135 225
+Line -7500403 true 135 225 105 270
+
 square
 false
 0
@@ -607,6 +704,16 @@ false
 0
 Rectangle -7500403 true true 30 30 270 270
 Rectangle -16777216 true false 60 60 240 240
+
+square 3
+true
+0
+Rectangle -7500403 false true 30 75 270 270
+
+square 4
+true
+0
+Rectangle -7500403 false true 30 75 240 270
 
 star
 false
