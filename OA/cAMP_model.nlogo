@@ -251,6 +251,8 @@ end
 ;; ***** RUNTIME PROCEDURES *****
 
 to go
+    ;;ifelse any? CO2 with [ ycor > plasmid-top ] [ ] [ stop ]  EXPERIMENT 1
+    ;;if ( count CO2 with [ycor < plasmid-top] ) > 9 [ stop ]  EXPERIMENT 2
     update-nodes
     run-animation
     pump-CO2
@@ -264,9 +266,9 @@ end
 
 to pump-CO2
   ;; uses size of transporter to randomly determine if a CO2 can move in... transporters range in size from 1.5 to 5.5
-  ask nodes with [ who = 13 ] [ if (size - 0.5)  > random 5 [ ask one-of CO2 [if ycor > cell-top [ setxy (chloroplast-left + random (chloroplast-right - chloroplast-left)) (chloroplast-top + random (cell-top - chloroplast-top - 1) + 1) ] ] ] ]
-  ask nodes with [ who = 12 ] [ if (size - 0.5) > random 5 [ ask one-of CO2 [if ( ycor < cell-top AND ycor > chloroplast-top ) [ setxy (plasmid-left + random (plasmid-right - plasmid-left)) (plasmid-top + random (chloroplast-top - plasmid-top - 1) + 1) ] ] ] ]
-  ask nodes with [ who = 10 ] [ if (size - 0.5) > random 5 [ ask one-of CO2 [if ( ycor < chloroplast-top AND ycor > plasmid-top ) [ setxy -0.4 * max-pxcor -2 ] ] ] ]
+  ask nodes with [ who = 13 ] [ if (size - 0.5)  > random 5 AND knockedout? = false [ ask one-of CO2 [if ycor > cell-top [ setxy (chloroplast-left + random (chloroplast-right - chloroplast-left)) (chloroplast-top + random (cell-top - chloroplast-top - 1) + 1) ] ] ] ]
+  ask nodes with [ who = 12 ] [ if (size - 0.5) > random 5 AND knockedout? = false [ ask one-of CO2 [if ( ycor < cell-top AND ycor > chloroplast-top ) [ setxy (plasmid-left + random (plasmid-right - plasmid-left)) (plasmid-top + random (chloroplast-top - plasmid-top - 1) + 1) ] ] ] ]
+  ask nodes with [ who = 10 ] [ if (size - 0.5) > random 5 AND knockedout? = false [ ask one-of CO2 [if ( ycor < chloroplast-top AND ycor > plasmid-top ) [ setxy -0.4 * max-pxcor -2 ] ] ] ]
 end 
 
 
@@ -376,16 +378,16 @@ CO2-amount
 CO2-amount
 200
 800
-400
+800
 100
 1
 ppm
 HORIZONTAL
 
 BUTTON
-62
+61
 92
-129
+128
 125
 NIL
 setup
@@ -591,7 +593,6 @@ true
 0
 Circle -16777216 true false 135 135 30
 Circle -2674135 true false 165 135 30
-Circle -7500403 true true 105 135 0
 Circle -2674135 true false 105 135 30
 
 cow
