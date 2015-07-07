@@ -12,8 +12,9 @@ breed [ edges ]
 breed [ edge-heads ]
 breed [ edge-bodies ]
 breed [ membranes ]
+breed [ CO2 ]
 
-globals [ cycc-ko-status  ]
+globals [ cAMP-ko-status tickCounter calvinCycleRate ocean-top cell-top chloroplast-top plasmid-top cell-left cell-right chloroplast-left chloroplast-right plasmid-left plasmid-right ]
 
 membranes-own [ name ]
 
@@ -29,13 +30,48 @@ edge-bodies-own [ parent-edge ]
 
 to setup
   clear-all
-  ask patches [ set pcolor 88 ]   ;; set background color
+  ask patches [ set pcolor 109 ]   ;; set background color
+   
+   ;; DNA Turtle
+  crt 1 [ set heading 0 set size 9 set shape "spiral" set color black setxy (0.65 * max-pxcor) (-0.1 * max-pycor) stamp die]
+  
   setup-membranes
   setup-nodes
   setup-edges
+  setup-calvincycle
+  setup-CO2
   
-  ;; DNA Turtle
-  crt 1 [ set heading 0 set size 9 set shape "spiral" set color black setxy (0.6 * max-pxcor) (-0.1 * max-pycor) ]
+  reset-ticks
+end
+
+to setup-CO2
+  set ocean-top max-pycor - 0
+  set cell-top max-pycor - 6
+  set chloroplast-top 6
+  set plasmid-top 2.5
+  set cell-left min-pxcor
+  set cell-right max-pxcor
+  set chloroplast-left min-pxcor + 1
+  set chloroplast-right 3
+  set plasmid-left min-pxcor + 2
+  set plasmid-right 2
+  create-CO2 CO2-amount / 20 [ set shape "CO2" setxy random-Xcor (cell-top + random (ocean-top - cell-top) + 1) set size 3 ]
+end
+  
+
+to setup-calvincycle
+  set calvinCycleRate 1
+  
+  create-membranes 1 [
+    set shape "circle 2"
+    set heading 0
+    set color red
+    setxy (-0.4 * max-pxcor) (-0.4 * max-pycor)
+    set size 10
+    set name "calvinCycle"
+    set label-color black
+    set label name
+    ]
 end
 
 
@@ -43,19 +79,17 @@ end
 to setup-membranes
   create-membranes 4
   set-default-shape membranes "square 3"
-  ask membranes with [ who = 0 ] [ set name "cell" setxy (0 * max-pxcor) (0 * max-pycor) set color black set size 2.5 * max-pycor set heading 0 ]
-  ask membranes with [ who = 1 ] [ set name "chloroplast" setxy (-0.25 * max-pxcor) (-0.3 * max-pycor) set color black set size 1.7 * max-pycor set heading 90]
-  ask membranes with [ who = 2 ] [ set name "plastid" set shape "square 4" setxy (-0.25 * max-pxcor) (-0.48 * max-pycor) set color black set size 1.6 * max-pycor set heading 90]
-  ask membranes with [ who = 3 ] [ set name "nucleus" setxy (0.6 * max-pxcor) (-0.1 * max-pycor) set color black set size 0.8 * max-pycor set heading 90]
+  ask membranes with [ who = 1 ] [ set name "cell" setxy (0 * max-pxcor) (0 * max-pycor) set color black set size 2.5 * max-pycor set heading 0 ]
+  ask membranes with [ who = 2 ] [ set name "chloroplast" setxy (-0.25 * max-pxcor) (-0.3 * max-pycor) set color black set size 1.7 * max-pycor set heading 90]
+  ask membranes with [ who = 3 ] [ set name "plastid" set shape "square 4" setxy (-0.25 * max-pxcor) (-0.48 * max-pycor) set color black set size 1.6 * max-pycor set heading 90]
+  ask membranes with [ who = 4 ] [ set name "nucleus" setxy (0.6 * max-pxcor) (-0.1 * max-pycor) set color black set size 0.8 * max-pycor set heading 90]
 end
 
 
 to setup-nodes
-  ;; set globals
-  
-  
+    
   ;; create the nodes
-  create-nodes 5
+  create-nodes 9
     [ set in-edges []
       set out-edges []
       set knockedout? false 
@@ -64,32 +98,54 @@ to setup-nodes
   ;; customize individual nodes
   
   ;; CO2
-  ask nodes with [ who = 4 ] [ set name "CO2" 
+  ask nodes with [ who = 5 ] [ set name "CO2" 
                                set nodetype "control"
                                setxy (0.2 * max-pxcor) (0.9 * max-pycor) 
                                set amount CO2-amount
                                ]      
-  
-  ask nodes with [ who = 5 ] [ set name "CYCc" 
+  ;;CYCc
+  ask nodes with [ who = 6 ] [ set name "CYCc" 
                                set nodetype "protein"
                                setxy (0.4 * max-pxcor) (0.45 * max-pycor)                               
                                ]   
-  
-    ask nodes with [ who = 6 ] [ set name "cAMP" 
+  ;;cAMP
+  ask nodes with [ who = 7 ] [ set name "cAMP" 
                                set nodetype "messenger"
                                setxy (0.8 * max-pxcor) (0.35 * max-pycor)                               
-                               ]   
-    
-    ask nodes with [ who = 7 ] [ set name "Transcription Factor" 
+                               ]       
+  ;;Transcription Factor
+  ask nodes with [ who = 8 ] [ set name "Transcription Factor" 
                                set nodetype "protein"
                                setxy (0.45 * max-pxcor) (0 * max-pycor)                               
-                               ]    
-    
-    ask nodes with [ who = 8 ] [ set name "Gamma Carbonic Anhydrase" 
+                               ]        
+  ;;Gamma Carbonic Anhydrase
+  ask nodes with [ who = 9 ] [ set name "Gamma Carbonic Anhydrase" 
                                set nodetype "protein"
-                               setxy (0 * max-pxcor) (0.3 * max-pycor)                               
-                               ]  
-      
+                               setxy (0 * max-pxcor) (0.28 * max-pycor)                               
+                               ]
+  ;;CCM Transporter
+  ask nodes with [ who = 10 ] [ set name "CCM Transporter" 
+                               set nodetype "transporter"
+                               setxy (-0.4 * max-pxcor) (0.17 * max-pycor)                               
+                               ]
+  ;;  262258 Transporter
+  ask nodes with [ who = 11 ] [ set name "262258 Transporter" 
+                               set nodetype "transporter"
+                               setxy (-0.7 * max-pxcor) (0.17 * max-pycor)
+                               set amount 50                               
+                               ]
+  
+  ;;CCM Transporter
+  ask nodes with [ who = 12 ] [ set name "CCM Transporter" 
+                               set nodetype "transporter"
+                               setxy (-0.4 * max-pxcor) (0.38 * max-pycor)                               
+                               ]
+                               
+  ;;CCM Transporter
+  ask nodes with [ who = 13 ] [ set name "CCM Transporter" 
+                               set nodetype "transporter"
+                               setxy (-0.4 * max-pxcor) (0.62 * max-pycor)                               
+                               ]    
       
   
   
@@ -97,6 +153,7 @@ to setup-nodes
   ask nodes with [ nodetype = "control" ] [ set shape "triangle" ]
   ask nodes with [ nodetype = "protein" ] [ set shape "square" ]
   ask nodes with [ nodetype = "messenger" ] [ set shape "pentagon" ]
+  ask nodes with [ nodetype = "transporter" ] [ set shape "rectangle"]
   
   ;; set general node variables  
   ask nodes [set label name 
@@ -113,10 +170,12 @@ to setup-edges
   set-default-shape edge-bodies "edge-bodies"
   
    ;; define node connections
-  ask nodes with [ name = "CO2" ] [ connect-to (turtle 5) "sensing" ]
-  ask nodes with [ name = "CYCc" ] [ connect-to (turtle 6) "signaling" ]
-  ask nodes with [ name = "cAMP" ] [ connect-to (turtle 7) "signaling" ]
-  ask nodes with [ name = "Transcription Factor" ] [ connect-to (turtle 8) "signaling" ]
+  ask nodes with [ name = "CO2" ] [ connect-to (turtle 6) "sensing" ]
+  ask nodes with [ name = "CYCc" ] [ connect-to (turtle 7) "signaling" ]
+  ask nodes with [ name = "cAMP" ] [ connect-to (turtle 8) "signaling" ]
+  ask nodes with [ name = "Transcription Factor" ] [ connect-to (turtle 9) "signaling" 
+                                                     connect-to (turtle 10) "signaling"
+  ]
   
 end
 
@@ -132,10 +191,6 @@ to connect-to [other-node edge-type]  ;; node procedure
       ;; set edge direction
       set from myself
       set into other-node
-      
-      ;; add edge to edge lists of both nodes
-      ;set ([out-edges] of from) lput self ([out-edges] of from)
-      ;set ([in-edges] of into) lput self ([in-edges] of into)
       
       ;; position the edge
       reposition ]
@@ -184,25 +239,52 @@ end
 
 to go
     update-nodes
-    ;;use-mouse
+    run-calvincycle
+    run-CO2
+    tick
 end
 
 
+to run-CO2
+  ask CO2 [ if ycor > cell-top [ setxy random-Xcor (cell-top + random (ocean-top - cell-top) + 1)  set heading random 360 ]]
+  ;;ask nodes with [ who = 12 ] [ ask CO2-at xcor (ycor + 1) [ setxy (chloroplast-left + random (chloroplast-right - chloroplast-left)) (chloroplast-top + random (cell-top - chloroplast-top - 1) + 1) ]]
+  ask CO2 [ if ycor < cell-top AND ycor > chloroplast-top [setxy (chloroplast-left + random (chloroplast-right - chloroplast-left)) (chloroplast-top + random (cell-top - chloroplast-top - 1) + 1)  set heading random 360 ]]
+  ask nodes with [  who = 10 ] [ ask CO2-at xcor (ycor + 1) [ setxy (chloroplast-left + random (chloroplast-right - chloroplast-left)) (plasmid-top + random (chloroplast-top - plasmid-top - 1) + 1) ]]
+  
+  
+end
 
+
+to run-calvincycle
+  wait 0.05
+  ask membranes with [ name = "calvinCycle" ] [ if (ticks - tickCounter > calvinCycleRate) [
+          set heading (heading - 10) 
+          set tickCounter ticks
+          ]]
+end
 
 
 to update-nodes 
-  wait .1 ;; put in artificial delay
+
   ask nodes with [ name = "CO2" ] [ set amount CO2-amount / 10 ] 
- 
-  wait .1 ;; put in artificial delay
-  ask nodes with [ name = "CYCc" ] [ ifelse knockedout? = true [ set amount 0 ]  
-                                  [ set amount CO2-amount / 8 ]]
+
+  ask nodes with [ name = "CYCc" ] [set amount CO2-amount / 8 ]
+                                  
   
-  wait .1 ;; put in artificial delay
+  ask nodes with [ name = "cAMP" ] [ ifelse knockedout? = true [ set amount 0 ]  
+                                  [ set amount CO2-amount / 8 ]]                                
+
   ask nodes with [ name = "Transcription Factor" ] [ ifelse knockedout? = true [ set amount 0 ]  
                                   [ set amount CO2-amount / 8 ]]
- 
+                                                                    
+  
+  ask nodes with [ name = "CCM Transporter" ] [ ifelse knockedout? = true [ set amount 0 ]  
+                                  [ set amount (800 - CO2-amount) / 6 ]]
+                                  
+  ask nodes with [ name = "Gamma Carbonic Anhydrase" ] [ ifelse knockedout? = true [ set amount 0 ]  
+                                  [ set amount (800 - CO2-amount) / 10 ]]
+                                  
+                                  
   ask nodes [ update-display ]
 end
 
@@ -212,17 +294,11 @@ to update-display ;; node procedure
   set size ((amount / 25) + 1.5)
   
   ;; set colors
-  ifelse knockedout? = true [ set color 39 ] [
+  ifelse knockedout? = true [ set color 109 ] [
     if nodetype = "control"  [ set color scale-color yellow amount 220 -20]
     if nodetype = "protein"  [ set color scale-color green amount 220 -20 ]
     if nodetype = "messenger" [ set color scale-color orange amount 220 -20 ]
-                                  ;;if name = "geranylGeranylPP" [ set color scale-color 29 amount 570 -20 ]
-                                  ;;if name = "phytoene" [ set color scale-color 19 amount 470 -20 ]
-                                  ;;if name = "lycopene" [ set color scale-color red amount 280 -20 ]
-                                  ;;if name = "betaCarotene" [ set color scale-color orange amount 280 -20 ]
-                                  ;;if name = "retinal" [ set color scale-color yellow amount 300 -20 ]
-                              ;; ]
-    if nodetype = "bacterioRhodopsin" [ set color scale-color violet amount 220 -20 ]]
+    if nodetype = "transporter" [ set color scale-color violet amount 220 -20 ]]
 end
 
 
@@ -232,22 +308,18 @@ end
 ;; ***** KNOCKOUT PROCEDURES *****
 
 to knockout [ nodename ]
-  if nodename = "CYCc" [ toggle-CYCc true set cycc-ko-status true]
+  if nodename = "cAMP" [ toggle-cAMP true set cAMP-ko-status true]
 end
 
 
 to reactivate [ nodename ] 
-  if nodename = "CYCc" [ toggle-CYCc false set cycc-ko-status false ]
-
-  
-  if cycc-ko-status = true [ toggle-CYCc true ]
+  if nodename = "cAMP" [ toggle-cAMP false set cAMP-ko-status false ]
+  if cAMP-ko-status = true [ toggle-cAMP true ]
 
 end
 
-to toggle-CYCc [ change-value ]
- ask nodes with [ name = "CYCc" ] [ set knockedout? change-value ] 
-  ;;                 name = "crtb1" or
-                                
+to toggle-cAMP [ change-value ]
+ ask nodes with [ name = "cAMP" or name = "Transcription Factor" or name = "Gamma Carbonic Anhydrase" or name = "CCM Transporter"  ] [ set knockedout? change-value ]                              
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
@@ -271,8 +343,8 @@ GRAPHICS-WINDOW
 16
 -16
 16
-0
-0
+1
+1
 1
 ticks
 30.0
@@ -286,17 +358,17 @@ CO2-amount
 CO2-amount
 200
 800
-200
+700
 100
 1
 ppm
 HORIZONTAL
 
 BUTTON
-79
-168
-146
-201
+62
+92
+129
+125
 NIL
 setup
 NIL
@@ -310,10 +382,10 @@ NIL
 1
 
 BUTTON
-166
-169
-229
-202
+149
+93
+212
+126
 NIL
 go
 T
@@ -327,12 +399,12 @@ NIL
 1
 
 BUTTON
-18
-222
-145
-255
-knockout CYCc
-knockout \"CYCc\"
+34
+163
+234
+196
+knockout cAMP with IBMX
+knockout \"cAMP\"
 NIL
 1
 T
@@ -344,12 +416,12 @@ NIL
 1
 
 BUTTON
-166
-222
-312
-255
-NIL
-reactivate \"CYCc\"
+56
+209
+202
+242
+Reactive cAMP
+reactivate \"cAMP\"
 NIL
 1
 T
@@ -359,21 +431,6 @@ NIL
 NIL
 NIL
 1
-
-SLIDER
-17
-78
-285
-111
-IBMX-amount
-IBMX-amount
-0
-100
-50
-1
-1
-%
-HORIZONTAL
 
 @#$#@#$#@
 ## WHAT IS IT?
@@ -416,6 +473,19 @@ default
 true
 0
 Polygon -7500403 true true 150 5 40 250 150 205 260 250
+
+3gdp
+true
+0
+Line -16777216 false 195 180 225 150
+Line -16777216 false 150 150 195 180
+Line -16777216 false 105 165 150 150
+Line -16777216 false 60 135 105 165
+Circle -16777216 true false 135 135 30
+Circle -16777216 true false 180 165 30
+Circle -16777216 true false 210 135 30
+Circle -2674135 true false 90 150 30
+Circle -955883 true false 45 120 30
 
 airplane
 true
@@ -474,10 +544,19 @@ false
 Circle -7500403 true true 0 0 300
 
 circle 2
-false
+true
 0
-Circle -7500403 true true 0 0 300
-Circle -16777216 true false 30 30 240
+Circle -7500403 false true 30 30 240
+Polygon -7500403 true true 150 30 180 15 180 45
+Polygon -7500403 true true 120 255 150 270 120 285
+
+co2
+true
+0
+Circle -16777216 true false 135 135 30
+Circle -2674135 true false 165 135 30
+Circle -7500403 true true 105 135 0
+Circle -2674135 true false 105 135 30
 
 cow
 false
@@ -613,6 +692,11 @@ Polygon -7500403 true true 165 180 165 210 225 180 255 120 210 135
 Polygon -7500403 true true 135 105 90 60 45 45 75 105 135 135
 Polygon -7500403 true true 165 105 165 135 225 105 255 45 210 60
 Polygon -7500403 true true 135 90 120 45 150 15 180 45 165 90
+
+rectangle
+false
+0
+Rectangle -7500403 true true 90 60 210 240
 
 selectablecircle
 false
