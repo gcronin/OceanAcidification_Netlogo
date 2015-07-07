@@ -16,7 +16,7 @@ breed [ CO2 ]
 breed [ G3P ]
 breed [ deadTurtles deadTurtle ]
 
-globals [ cAMP-ko-status tickCounter animationRate ocean-top cell-top chloroplast-top plasmid-top cell-left cell-right chloroplast-left chloroplast-right plasmid-left plasmid-right G3Pcount]
+globals [ cAMP-ko-status tickCounter animationRate ocean-top cell-top chloroplast-top plasmid-top cell-left cell-right chloroplast-left chloroplast-right plasmid-left plasmid-right G3Pcount ATP-per-G3P  ATPcount slope CO2-ppm-min CO2-ppm-max CO2-current i ]
 
 CO2-own [ calvinCycle-location ]
 G3P-own [ location ]
@@ -34,7 +34,11 @@ edge-bodies-own [ parent-edge ]
 to setup
   clear-all
   ask patches [ set pcolor 109 ]   ;; set background color
-   
+
+  set ATP-per-G3P 9
+  set CO2-ppm-min 200
+  set CO2-ppm-max 800
+    
    ;; DNA Turtle
   crt 1 [ set heading 0 set size 9 set shape "spiral" set color black setxy (0.65 * max-pxcor) (-0.1 * max-pycor) stamp die]
   
@@ -43,6 +47,8 @@ to setup
   setup-edges
   setup-calvincycle
   setup-CO2
+  
+  do-plots
   
   reset-ticks
 end
@@ -63,8 +69,9 @@ end
   
 
 to setup-calvincycle
-  set animationRate 1
+  set animationRate 1  ;;bug note... if this is set to another number, the pumpArrows may not work
   
+  ;; create Calvin Cycle loop
   create-membranes 1 [
     set shape "circle 2"
     set heading 0
@@ -75,7 +82,8 @@ to setup-calvincycle
     set label-color black
     set label name
     ]
-    
+  
+  ;; create arrows on CCM Transporters  
   create-membranes 3 [
     set shape "arrow"
     set heading 180
@@ -84,6 +92,7 @@ to setup-calvincycle
     set name "pumpArrows"  
     ]
     
+    ;; place arrows on CCM Transporters
     ask membranes with [ who = 30 ] [ setxy (-0.4 * max-pxcor) (0.17 * max-pycor + 1) ]
     ask membranes with [ who = 31 ] [ setxy (-0.4 * max-pxcor) (0.38 * max-pycor + 1) ]
     ask membranes with [ who = 32 ] [ setxy (-0.4 * max-pxcor) (0.62 * max-pycor + 1) ]
@@ -93,6 +102,7 @@ end
 
 
 to setup-membranes
+  ;; Create 4 membranes for the cell membrane, the chloroplast membrane, the plasmid membrane, and the nuclear membrane... cell wall left out for simplicity
   create-membranes 4
   set-default-shape membranes "square 3"
   ask membranes with [ who = 1 ] [ set name "cell" setxy (0 * max-pxcor) (0 * max-pycor) set color black set size 2.5 * max-pycor set heading 0 ]
@@ -104,7 +114,7 @@ end
 
 to setup-nodes
     
-  ;; create the nodes
+  ;; create the nodes in the genetic pathway
   create-nodes 9
     [ set in-edges []
       set out-edges []
@@ -254,7 +264,7 @@ end
 ;; ***** RUNTIME PROCEDURES *****
 
 to go
-
+    if( G3Pcount = Amount-of-G3P-to-Produce ) [ stop ]
     update-nodes
     run-animation
     pump-CO2
@@ -267,9 +277,9 @@ end
 to pump-CO2
   ;; uses size of transporter to randomly determine if a CO2 can move in... transporters range in size from 1.5 to 5.5
   if ( count CO2 > 0 ) [
-    ask nodes with [ who = 13 ] [ if (size - 0.5)  > random 5 AND knockedout? = false [ ask one-of CO2 [if ycor > cell-top [ setxy (chloroplast-left + random (chloroplast-right - chloroplast-left)) (chloroplast-top + random (cell-top - chloroplast-top - 1) + 1) ] ] ] ]
-    ask nodes with [ who = 12 ] [ if (size - 0.5) > random 5 AND knockedout? = false [ ask one-of CO2 [if ( ycor < cell-top AND ycor > chloroplast-top ) [ setxy (plasmid-left + random (plasmid-right - plasmid-left)) (plasmid-top + random (chloroplast-top - plasmid-top - 1) + 1) ] ] ] ]
-    ask nodes with [ who = 10 ] [ if (size - 0.5) > random 5 AND knockedout? = false [ ask one-of CO2 [if ( ycor < chloroplast-top AND ycor > plasmid-top ) [ setxy -0.4 * max-pxcor -2 ] ] ] ] 
+    ask nodes with [ who = 13 ] [ if (size - 0.5)  > random 5 AND knockedout? = false [ ask one-of CO2 [if ycor > cell-top [ set ATPcount ATPcount + ATP-per-CO2Transport setxy (chloroplast-left + random (chloroplast-right - chloroplast-left)) (chloroplast-top + random (cell-top - chloroplast-top - 1) + 1) ] ] ] ]
+    ask nodes with [ who = 12 ] [ if (size - 0.5) > random 5 AND knockedout? = false [ ask one-of CO2 [if ( ycor < cell-top AND ycor > chloroplast-top ) [ set ATPcount ATPcount + ATP-per-CO2Transport setxy (plasmid-left + random (plasmid-right - plasmid-left)) (plasmid-top + random (chloroplast-top - plasmid-top - 1) + 1) ] ] ] ]
+    ask nodes with [ who = 10 ] [ if (size - 0.5) > random 5 AND knockedout? = false [ ask one-of CO2 [if ( ycor < chloroplast-top AND ycor > plasmid-top ) [ set ATPcount ATPcount + ATP-per-CO2Transport setxy -0.4 * max-pxcor -2 ] ] ] ] 
   ]
 end 
 
@@ -279,14 +289,17 @@ to run-animation
   
   if (ticks - tickCounter > animationRate) [
     
-    ;; Rotate Calvin Cycle Arrow
+    ;; Move Transporter Arrows up and down
     ask membranes with [ name = "pumpArrows" ] [ ifelse ( ticks mod 3 = 0 ) [ setxy xcor ycor + 2  ] [  fd 1 ]]
+    
+    ;; Rotate Calvin Cycle Arrow
     ask membranes with [ name = "calvinCycle" ] [ set heading (heading - 10) ]
   
     ;; Move CO2 molecules around Calvin Cycle
     ifelse ( count CO2 with [ calvinCycle-location = 4 ] > 2 )
     [
       ;; create a G3P molecule from 3 CO2 molecules... have to change breed of CO2s otherwise there are issues with "nobody" errors when "ask one-of CO2" is called in pump-CO2 function
+      set ATPcount ATPcount + ATP-per-G3P
       repeat 3 [ ask one-of CO2 with [ calvinCycle-location = 4 ] [ set calvinCycle-location 0 set breed deadTurtles die ] ] create-G3P 1 [ set shape "g3p" set size 4 setxy -0.4 * max-pxcor -0.8 * max-pycor set location 1 ]
     ]
     
@@ -408,6 +421,67 @@ to do-plots
   set-current-plot "glyceraldehyde-3-phosphate (G3P)"
   set-current-plot-pen "G3P"
   plot G3Pcount
+    
+  set-current-plot "ATP Used"
+  set-current-plot-pen "ATP"
+  plot ATPcount
+  
+  if ( CO2-amount != CO2-current ) 
+  [ 
+    set-current-plot "Gene Enrichment"
+    clear-plot
+    
+    set-current-plot-pen "TCA"
+    plot50 0 0
+    plot100 50 scale CO2-amount CO2-ppm-min CO2-ppm-max 0 -2 
+    
+    set-current-plot-pen "Photosynthesis"
+    plot50 150 0
+    plot100 200 scale CO2-amount CO2-ppm-min CO2-ppm-max 0 -1.5 
+    
+    set-current-plot-pen "Kinases"
+    plot50 300 0
+    plot100 350 scale CO2-amount CO2-ppm-min CO2-ppm-max 0 -4.5 
+    
+    set-current-plot-pen "Transcription"
+    plot50 450 0
+    plot100 500 scale CO2-amount CO2-ppm-min CO2-ppm-max 0 -4 
+    
+    set-current-plot-pen "Ribosome"
+    plot50 600 0
+    plot100 650 scale CO2-amount CO2-ppm-min CO2-ppm-max 0 4 
+    
+    set-current-plot-pen "Ion Transport"
+    plot50 750 0
+    plot100 800 scale CO2-amount CO2-ppm-min CO2-ppm-max 0 -5 
+    
+    set CO2-current CO2-amount 
+      
+   ]
+  
+
+  
+end
+
+to plot100 [ starting-x number-to-plot ]
+  set i 0
+  repeat 100 [ 
+    plotxy (starting-x + i) number-to-plot 
+    set i ( i + 1)
+    ]
+end
+
+to plot50 [ starting-x number-to-plot ]
+  set i 0
+  repeat 50 [ 
+    plotxy (starting-x + i) number-to-plot 
+    set i ( i + 1)
+    ]
+end
+
+to-report scale [ number CO2-ppm-low CO2-ppm-high CO2-value-low CO2-value-high ]
+  set slope ( CO2-value-high -  CO2-value-low ) / ( CO2-ppm-high - CO2-ppm-low )
+  report (  CO2-value-low + slope * ( number - CO2-ppm-low ) )
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
@@ -438,25 +512,25 @@ ticks
 30.0
 
 SLIDER
-15
-29
-284
-62
+28
+59
+297
+92
 CO2-amount
 CO2-amount
-200
+CO2-ppm-min
+CO2-ppm-max
 800
-500
 100
 1
 ppm
 HORIZONTAL
 
 BUTTON
-61
-92
-128
-125
+83
+14
+150
+47
 NIL
 setup
 NIL
@@ -470,10 +544,10 @@ NIL
 1
 
 BUTTON
-149
-93
-212
-126
+171
+15
+234
+48
 NIL
 go
 T
@@ -487,10 +561,10 @@ NIL
 1
 
 BUTTON
-34
-163
+87
+201
+287
 234
-196
 knockout cAMP with IBMX
 knockout \"cAMP\"
 NIL
@@ -504,10 +578,10 @@ NIL
 1
 
 BUTTON
-56
-209
-202
-242
+109
+247
+255
+280
 Reactive cAMP
 reactivate \"cAMP\"
 NIL
@@ -537,6 +611,88 @@ false
 "" ""
 PENS
 "G3P" 1.0 0 -16777216 true "" ""
+
+PLOT
+24
+298
+349
+530
+ATP Used
+NIL
+NIL
+0.0
+10.0
+0.0
+10.0
+true
+false
+"" ""
+PENS
+"ATP" 1.0 0 -16777216 true "" ""
+
+SLIDER
+27
+147
+299
+180
+Amount-of-G3P-to-Produce
+Amount-of-G3P-to-Produce
+0
+500
+319
+1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+1264
+632
+1461
+665
+ATP-per-CO2Transport
+ATP-per-CO2Transport
+0
+20
+1
+1
+1
+NIL
+HORIZONTAL
+
+TEXTBOX
+1309
+608
+1459
+626
+For Gabe
+13
+0.0
+1
+
+PLOT
+1100
+33
+1718
+443
+Gene Enrichment
+NIL
+Gene Enrichment
+0.0
+950.0
+-5.0
+5.0
+false
+true
+"" ""
+PENS
+"TCA" 1.0 1 -13791810 true "" ""
+"Photosynthesis" 1.0 1 -2674135 true "" ""
+"Kinases" 1.0 1 -13840069 true "" ""
+"Transcription" 1.0 1 -5825686 true "" ""
+"Ribosome" 1.0 1 -6459832 true "" ""
+"Ion Transport" 1.0 1 -1184463 true "" ""
+"pen-6" 1.0 0 -16777216 false "" ";; we don't want the \"auto-plot\" feature to cause the\n;; plot's x range to grow when we draw the axis.  so\n;; first we turn auto-plot off temporarily\nauto-plot-off\n;; now we draw an axis by drawing a line from the origin...\nplotxy 0 0\n;; ...to a point that's way, way, way off to the right.\nplotxy 1000000000 0\n;; now that we're done drawing the axis, we can turn\n;; auto-plot back on again"
 
 @#$#@#$#@
 ## WHAT IS IT?
