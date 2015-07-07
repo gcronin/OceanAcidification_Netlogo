@@ -13,8 +13,11 @@ breed [ edge-heads ]
 breed [ edge-bodies ]
 breed [ membranes ]
 breed [ CO2 ]
+breed [ deadTurtles deadTurtle ]
 
-globals [ cAMP-ko-status tickCounter calvinCycleRate ocean-top cell-top chloroplast-top plasmid-top cell-left cell-right chloroplast-left chloroplast-right plasmid-left plasmid-right ]
+globals [ cAMP-ko-status tickCounter animationRate ocean-top cell-top chloroplast-top plasmid-top cell-left cell-right chloroplast-left chloroplast-right plasmid-left plasmid-right ]
+
+CO2-own [ calvinCycle-location ]
 
 membranes-own [ name ]
 
@@ -60,7 +63,7 @@ end
   
 
 to setup-calvincycle
-  set calvinCycleRate 1
+  set animationRate 1
   
   create-membranes 1 [
     set shape "circle 2"
@@ -251,36 +254,68 @@ end
 ;; ***** RUNTIME PROCEDURES *****
 
 to go
-    ;;ifelse any? CO2 with [ ycor > plasmid-top ] [ ] [ stop ]  EXPERIMENT 1
-    ;;if ( count CO2 with [ycor < plasmid-top] ) > 9 [ stop ]  EXPERIMENT 2
+
     update-nodes
     run-animation
     pump-CO2
+    do-plots
     
-    set-current-plot "plot 1"
-  set-current-plot-pen "AvailableCO2"
-  plot count CO2 with [ycor < plasmid-top]
     tick
 end
 
 
 to pump-CO2
   ;; uses size of transporter to randomly determine if a CO2 can move in... transporters range in size from 1.5 to 5.5
-  ask nodes with [ who = 13 ] [ if (size - 0.5)  > random 5 AND knockedout? = false [ ask one-of CO2 [if ycor > cell-top [ setxy (chloroplast-left + random (chloroplast-right - chloroplast-left)) (chloroplast-top + random (cell-top - chloroplast-top - 1) + 1) ] ] ] ]
-  ask nodes with [ who = 12 ] [ if (size - 0.5) > random 5 AND knockedout? = false [ ask one-of CO2 [if ( ycor < cell-top AND ycor > chloroplast-top ) [ setxy (plasmid-left + random (plasmid-right - plasmid-left)) (plasmid-top + random (chloroplast-top - plasmid-top - 1) + 1) ] ] ] ]
-  ask nodes with [ who = 10 ] [ if (size - 0.5) > random 5 AND knockedout? = false [ ask one-of CO2 [if ( ycor < chloroplast-top AND ycor > plasmid-top ) [ setxy -0.4 * max-pxcor -2 ] ] ] ]
+  if ( count CO2 > 0 ) [
+    ask nodes with [ who = 13 ] [ if (size - 0.5)  > random 5 AND knockedout? = false [ ask one-of CO2 [if ycor > cell-top [ setxy (chloroplast-left + random (chloroplast-right - chloroplast-left)) (chloroplast-top + random (cell-top - chloroplast-top - 1) + 1) ] ] ] ]
+    ask nodes with [ who = 12 ] [ if (size - 0.5) > random 5 AND knockedout? = false [ ask one-of CO2 [if ( ycor < cell-top AND ycor > chloroplast-top ) [ setxy (plasmid-left + random (plasmid-right - plasmid-left)) (plasmid-top + random (chloroplast-top - plasmid-top - 1) + 1) ] ] ] ]
+    ask nodes with [ who = 10 ] [ if (size - 0.5) > random 5 AND knockedout? = false [ ask one-of CO2 [if ( ycor < chloroplast-top AND ycor > plasmid-top ) [ setxy -0.4 * max-pxcor -2 ] ] ] ] 
+  ]
 end 
 
 
 to run-animation
   wait 0.05
-  ask membranes with [ name = "pumpArrows" ] [ if (ticks - tickCounter > calvinCycleRate) [ ifelse ( ticks mod 3 = 0 ) [ setxy xcor ycor + 2  ] [  fd 1 ]]]
-  ask membranes with [ name = "calvinCycle" ] [ if (ticks - tickCounter > calvinCycleRate) [
-          set heading (heading - 10) 
-          set tickCounter ticks
-          ]]
   
-          ;;
+  if (ticks - tickCounter > animationRate) [
+    
+    ;; Rotate Calvin Cycle Arrow
+    ask membranes with [ name = "pumpArrows" ] [ ifelse ( ticks mod 3 = 0 ) [ setxy xcor ycor + 2  ] [  fd 1 ]]
+    ask membranes with [ name = "calvinCycle" ] [ set heading (heading - 10) ]
+  
+    ;; Move CO2 molecules around Calvin Cycle
+    ifelse ( count CO2 with [ calvinCycle-location = 4 ] > 2 )
+    [
+      ;; create a 3GDP molecule from 3 CO2 molecules... have to change breed of CO2s otherwise there are issues with "nobody" errors when "ask one-of CO2" is called in pump-CO2 function
+      repeat 3 [ ask one-of CO2 with [ calvinCycle-location = 4 ] [ set calvinCycle-location 0 set breed deadTurtles die ] ] crt 1 [ set shape "3gdp" set size 4 setxy -0.4 * max-pxcor -0.8 * max-pycor ]
+    ]
+    
+    [ ifelse ( any? CO2 with [ calvinCycle-location = 3 ] ) 
+      [ 
+        ask one-of CO2 with [ calvinCycle-location = 3 ] [ set heading 125 fd 3 set calvinCycle-location 4]
+      ]
+        
+      [ ifelse ( any? CO2 with [ calvinCycle-location = 2 ] ) 
+        [
+          ask one-of CO2 with [ calvinCycle-location = 2 ] [ set heading 165 fd 3 set calvinCycle-location 3]
+        ]
+    
+        [ ifelse ( any? CO2 with [ calvinCycle-location = 1 ] ) 
+          [ 
+            ask one-of CO2 with [ calvinCycle-location = 1 ] [ set heading 200 fd 3 set calvinCycle-location 2 ]
+          ]
+        
+          [ if ( any? CO2 with [ xcor = -0.4 * max-pxcor AND ycor = -2 ] ) 
+            [ 
+              ask one-of CO2 with [ xcor = -0.4 * max-pxcor AND ycor = -2 ] [ set heading 250 fd 3 set calvinCycle-location 1 ] 
+            ]
+          ]
+        ]
+      ]
+    ]
+    
+    set tickCounter ticks 
+  ]
 end
 
 
@@ -341,6 +376,15 @@ end
 to toggle-cAMP [ change-value ]
  ask nodes with [ name = "cAMP" or name = "Transcription Factor" or name = "Gamma Carbonic Anhydrase" or name = "CCM Transporter"  ] [ set knockedout? change-value ]                              
 end
+
+
+;; *********  GRAPHING PROCEDURES **********************
+
+to do-plots
+  set-current-plot "plot 1"
+  set-current-plot-pen "AvailableCO2"
+  plot count CO2 with [ycor < plasmid-top]
+end
 @#$#@#$#@
 GRAPHICS-WINDOW
 369
@@ -378,7 +422,7 @@ CO2-amount
 CO2-amount
 200
 800
-800
+500
 100
 1
 ppm
