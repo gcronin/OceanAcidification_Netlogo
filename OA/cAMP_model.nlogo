@@ -485,10 +485,10 @@ to-report scale [ number CO2-ppm-low CO2-ppm-high CO2-value-low CO2-value-high ]
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
-369
-24
-1075
-751
+368
+22
+1074
+749
 16
 16
 21.1
@@ -520,7 +520,7 @@ CO2-amount
 CO2-amount
 CO2-ppm-min
 CO2-ppm-max
-800
+300
 100
 1
 ppm
@@ -605,7 +605,7 @@ NIL
 0.0
 10.0
 0.0
-10.0
+5.0
 true
 false
 "" ""
@@ -638,37 +638,12 @@ SLIDER
 Amount-of-G3P-to-Produce
 Amount-of-G3P-to-Produce
 0
-500
-319
+5
+3
 1
 1
 NIL
 HORIZONTAL
-
-SLIDER
-1264
-632
-1461
-665
-ATP-per-CO2Transport
-ATP-per-CO2Transport
-0
-20
-1
-1
-1
-NIL
-HORIZONTAL
-
-TEXTBOX
-1309
-608
-1459
-626
-For Gabe
-13
-0.0
-1
 
 PLOT
 1100
@@ -693,6 +668,71 @@ PENS
 "Ribosome" 1.0 1 -6459832 true "" ""
 "Ion Transport" 1.0 1 -1184463 true "" ""
 "pen-6" 1.0 0 -16777216 false "" ";; we don't want the \"auto-plot\" feature to cause the\n;; plot's x range to grow when we draw the axis.  so\n;; first we turn auto-plot off temporarily\nauto-plot-off\n;; now we draw an axis by drawing a line from the origin...\nplotxy 0 0\n;; ...to a point that's way, way, way off to the right.\nplotxy 1000000000 0\n;; now that we're done drawing the axis, we can turn\n;; auto-plot back on again"
+
+TEXTBOX
+1347
+575
+1497
+600
+For Gabe
+20
+0.0
+1
+
+SLIDER
+1260
+627
+1462
+660
+ATP-per-CO2Transport
+ATP-per-CO2Transport
+0
+3
+0.1
+0.1
+1
+NIL
+HORIZONTAL
+
+TEXTBOX
+393
+193
+543
+218
+Cell
+20
+0.0
+1
+
+TEXTBOX
+871
+511
+1021
+536
+Nucleus
+20
+0.0
+1
+
+TEXTBOX
+436
+695
+586
+714
+Plastid
+15
+0.0
+1
+
+TEXTBOX
+415
+274
+565
+293
+Chloroplast
+15
+0.0
+1
 
 @#$#@#$#@
 ## WHAT IS IT?
