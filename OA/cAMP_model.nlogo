@@ -72,6 +72,19 @@ to setup-calvincycle
     set label-color black
     set label name
     ]
+    
+  create-membranes 3 [
+    set shape "arrow"
+    set heading 180
+    set color white
+    set size 1
+    set name "pumpArrows"  
+    ]
+    
+    ask membranes with [ who = 30 ] [ setxy (-0.4 * max-pxcor) (0.17 * max-pycor + 1) ]
+    ask membranes with [ who = 31 ] [ setxy (-0.4 * max-pxcor) (0.38 * max-pycor + 1) ]
+    ask membranes with [ who = 32 ] [ setxy (-0.4 * max-pxcor) (0.62 * max-pycor + 1) ]
+    
 end
 
 
@@ -239,28 +252,33 @@ end
 
 to go
     update-nodes
-    run-calvincycle
-    run-CO2
+    run-animation
+    pump-CO2
+    
+    set-current-plot "plot 1"
+  set-current-plot-pen "AvailableCO2"
+  plot count CO2 with [ycor < plasmid-top]
     tick
 end
 
 
-to run-CO2
-  ask CO2 [ if ycor > cell-top [ setxy random-Xcor (cell-top + random (ocean-top - cell-top) + 1)  set heading random 360 ]]
-  ;;ask nodes with [ who = 12 ] [ ask CO2-at xcor (ycor + 1) [ setxy (chloroplast-left + random (chloroplast-right - chloroplast-left)) (chloroplast-top + random (cell-top - chloroplast-top - 1) + 1) ]]
-  ask CO2 [ if ycor < cell-top AND ycor > chloroplast-top [setxy (chloroplast-left + random (chloroplast-right - chloroplast-left)) (chloroplast-top + random (cell-top - chloroplast-top - 1) + 1)  set heading random 360 ]]
-  ask nodes with [  who = 10 ] [ ask CO2-at xcor (ycor + 1) [ setxy (chloroplast-left + random (chloroplast-right - chloroplast-left)) (plasmid-top + random (chloroplast-top - plasmid-top - 1) + 1) ]]
-  
-  
-end
+to pump-CO2
+  ;; uses size of transporter to randomly determine if a CO2 can move in... transporters range in size from 1.5 to 5.5
+  ask nodes with [ who = 13 ] [ if (size - 0.5)  > random 5 [ ask one-of CO2 [if ycor > cell-top [ setxy (chloroplast-left + random (chloroplast-right - chloroplast-left)) (chloroplast-top + random (cell-top - chloroplast-top - 1) + 1) ] ] ] ]
+  ask nodes with [ who = 12 ] [ if (size - 0.5) > random 5 [ ask one-of CO2 [if ( ycor < cell-top AND ycor > chloroplast-top ) [ setxy (plasmid-left + random (plasmid-right - plasmid-left)) (plasmid-top + random (chloroplast-top - plasmid-top - 1) + 1) ] ] ] ]
+  ask nodes with [ who = 10 ] [ if (size - 0.5) > random 5 [ ask one-of CO2 [if ( ycor < chloroplast-top AND ycor > plasmid-top ) [ setxy -0.4 * max-pxcor -2 ] ] ] ]
+end 
 
 
-to run-calvincycle
+to run-animation
   wait 0.05
+  ask membranes with [ name = "pumpArrows" ] [ if (ticks - tickCounter > calvinCycleRate) [ ifelse ( ticks mod 3 = 0 ) [ setxy xcor ycor + 2  ] [  fd 1 ]]]
   ask membranes with [ name = "calvinCycle" ] [ if (ticks - tickCounter > calvinCycleRate) [
           set heading (heading - 10) 
           set tickCounter ticks
           ]]
+  
+          ;;
 end
 
 
@@ -298,7 +316,7 @@ to update-display ;; node procedure
     if nodetype = "control"  [ set color scale-color yellow amount 220 -20]
     if nodetype = "protein"  [ set color scale-color green amount 220 -20 ]
     if nodetype = "messenger" [ set color scale-color orange amount 220 -20 ]
-    if nodetype = "transporter" [ set color scale-color violet amount 220 -20 ]]
+    if nodetype = "transporter" [ set color scale-color violet amount 220 -50 ]]
 end
 
 
@@ -358,7 +376,7 @@ CO2-amount
 CO2-amount
 200
 800
-700
+400
 100
 1
 ppm
@@ -432,6 +450,24 @@ NIL
 NIL
 1
 
+PLOT
+51
+337
+251
+487
+plot 1
+NIL
+NIL
+0.0
+10.0
+0.0
+10.0
+true
+false
+"" ""
+PENS
+"AvailableCO2" 1.0 0 -16777216 true "" ""
+
 @#$#@#$#@
 ## WHAT IS IT?
 
@@ -495,7 +531,7 @@ Polygon -7500403 true true 150 0 135 15 120 60 120 105 15 165 15 195 120 180 135
 arrow
 true
 0
-Polygon -7500403 true true 150 0 0 150 105 150 105 293 195 293 195 150 300 150
+Polygon -7500403 true true 150 0 90 60 135 60 135 285 165 285 165 60 210 60
 
 box
 false
