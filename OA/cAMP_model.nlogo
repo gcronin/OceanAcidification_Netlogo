@@ -13,18 +13,18 @@ breed [ edge-heads ]
 breed [ edge-bodies ]
 breed [ membranes ]
 breed [ CO2 ]
+breed [ G3P ]
 breed [ deadTurtles deadTurtle ]
 
-globals [ cAMP-ko-status tickCounter animationRate ocean-top cell-top chloroplast-top plasmid-top cell-left cell-right chloroplast-left chloroplast-right plasmid-left plasmid-right ]
+globals [ cAMP-ko-status tickCounter animationRate ocean-top cell-top chloroplast-top plasmid-top cell-left cell-right chloroplast-left chloroplast-right plasmid-left plasmid-right G3Pcount]
 
 CO2-own [ calvinCycle-location ]
+G3P-own [ location ]
 
 membranes-own [ name ]
 
 nodes-own [ name amount in-edges out-edges knockedout? nodetype ]
-
 edges-own [ from into edge_type ]
-
 edge-heads-own [ parent-edge ]
 edge-bodies-own [ parent-edge ]
 
@@ -286,8 +286,8 @@ to run-animation
     ;; Move CO2 molecules around Calvin Cycle
     ifelse ( count CO2 with [ calvinCycle-location = 4 ] > 2 )
     [
-      ;; create a 3GDP molecule from 3 CO2 molecules... have to change breed of CO2s otherwise there are issues with "nobody" errors when "ask one-of CO2" is called in pump-CO2 function
-      repeat 3 [ ask one-of CO2 with [ calvinCycle-location = 4 ] [ set calvinCycle-location 0 set breed deadTurtles die ] ] crt 1 [ set shape "3gdp" set size 4 setxy -0.4 * max-pxcor -0.8 * max-pycor ]
+      ;; create a G3P molecule from 3 CO2 molecules... have to change breed of CO2s otherwise there are issues with "nobody" errors when "ask one-of CO2" is called in pump-CO2 function
+      repeat 3 [ ask one-of CO2 with [ calvinCycle-location = 4 ] [ set calvinCycle-location 0 set breed deadTurtles die ] ] create-G3P 1 [ set shape "g3p" set size 4 setxy -0.4 * max-pxcor -0.8 * max-pycor set location 1 ]
     ]
     
     [ ifelse ( any? CO2 with [ calvinCycle-location = 3 ] ) 
@@ -313,6 +313,30 @@ to run-animation
         ]
       ]
     ]
+    
+    ;; Move G3P over to graph
+   ifelse ( any? G3P with [ location = 4 ] )
+   [
+     ask one-of G3P with [ location = 4 ] [ set G3Pcount G3Pcount + 1 set location 0 set breed deadTurtles die ]
+   ]
+   [ ifelse ( any? G3P with [ location = 3 ] ) 
+      [ 
+        ask one-of G3P with [ location = 3 ] [  fd 3 set location 4 ]
+      ]
+        
+      [ ifelse ( any? G3P with [ location = 2 ] ) 
+        [
+          ask one-of G3P with [ location = 2 ] [ fd 3 set location 3]
+        ]
+    
+        [ if ( any? G3P with [ location = 1 ] ) 
+          [ 
+            ask one-of G3P with [ location = 1 ] [ set heading 280 fd 3 set location 2 ]
+          ]
+        ]
+      ] 
+   ]
+    
     
     set tickCounter ticks 
   ]
@@ -381,9 +405,9 @@ end
 ;; *********  GRAPHING PROCEDURES **********************
 
 to do-plots
-  set-current-plot "plot 1"
-  set-current-plot-pen "AvailableCO2"
-  plot count CO2 with [ycor < plasmid-top]
+  set-current-plot "glyceraldehyde-3-phosphate (G3P)"
+  set-current-plot-pen "G3P"
+  plot G3Pcount
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
@@ -497,11 +521,11 @@ NIL
 1
 
 PLOT
-51
-337
-251
-487
-plot 1
+24
+537
+350
+747
+glyceraldehyde-3-phosphate (G3P)
 NIL
 NIL
 0.0
@@ -512,7 +536,7 @@ true
 false
 "" ""
 PENS
-"AvailableCO2" 1.0 0 -16777216 true "" ""
+"G3P" 1.0 0 -16777216 true "" ""
 
 @#$#@#$#@
 ## WHAT IS IT?
@@ -555,19 +579,6 @@ default
 true
 0
 Polygon -7500403 true true 150 5 40 250 150 205 260 250
-
-3gdp
-true
-0
-Line -16777216 false 195 180 225 150
-Line -16777216 false 150 150 195 180
-Line -16777216 false 105 165 150 150
-Line -16777216 false 60 135 105 165
-Circle -16777216 true false 135 135 30
-Circle -16777216 true false 180 165 30
-Circle -16777216 true false 210 135 30
-Circle -2674135 true false 90 150 30
-Circle -955883 true false 45 120 30
 
 airplane
 true
@@ -723,6 +734,19 @@ Circle -7500403 true true 96 51 108
 Circle -16777216 true false 113 68 74
 Polygon -10899396 true false 189 233 219 188 249 173 279 188 234 218
 Polygon -10899396 true false 180 255 150 210 105 210 75 240 135 240
+
+g3p
+true
+0
+Line -16777216 false 195 180 225 150
+Line -16777216 false 150 150 195 180
+Line -16777216 false 105 165 150 150
+Line -16777216 false 60 135 105 165
+Circle -16777216 true false 135 135 30
+Circle -16777216 true false 180 165 30
+Circle -16777216 true false 210 135 30
+Circle -2674135 true false 90 150 30
+Circle -955883 true false 45 120 30
 
 house
 false
