@@ -7,22 +7,28 @@
 
 ;; ***** VARIABLE DECLARATIONS *****
 
+
+breed [ membranes ] ;; note that this needs to be declared BEFORE nodes in order for the transporters to be above the 
 breed [ nodes ]
 breed [ edges ]
 breed [ edge-heads ]
 breed [ edge-bodies ]
-breed [ membranes ]
 breed [ CO2 ]
 breed [ G3P ]
-breed [ deadTurtles deadTurtle ]
+breed [ deadTurtles ]
 
-globals [ cAMP-ko-status tickCounter animationRate ocean-top cell-top chloroplast-top plasmid-top cell-left cell-right chloroplast-left chloroplast-right plasmid-left plasmid-right G3Pcount ATP-per-G3P  ATPcount slope CO2-ppm-min CO2-ppm-max CO2-current i ]
+globals [ runCalvinCycle? tickCounter animationRate  
+  ocean-top cell-top chloroplast-top plasmid-top cell-left cell-right chloroplast-left chloroplast-right plasmid-left plasmid-right 
+  G3Pcount 
+  ATPcount ATP-per-CO2Transport
+  slope CO2-ppm-min CO2-ppm-max CO2-current 
+  i 
+  cAMP-ko-status
+  ]
 
 CO2-own [ calvinCycle-location ]
 G3P-own [ location ]
-
 membranes-own [ name ]
-
 nodes-own [ name amount in-edges out-edges knockedout? nodetype ]
 edges-own [ from into edge_type ]
 edge-heads-own [ parent-edge ]
@@ -35,9 +41,10 @@ to setup
   clear-all
   ask patches [ set pcolor 109 ]   ;; set background color
 
-  set ATP-per-G3P 9
-  set CO2-ppm-min 200
+  set ATP-per-CO2Transport 1
+  set CO2-ppm-min 400
   set CO2-ppm-max 800
+  set animationRate 5;
     
    ;; DNA Turtle
   crt 1 [ set heading 0 set size 9 set shape "spiral" set color black setxy (0.65 * max-pxcor) (-0.1 * max-pycor) stamp die]
@@ -64,51 +71,33 @@ to setup-CO2
   set chloroplast-right 3
   set plasmid-left min-pxcor + 2
   set plasmid-right 2
-  create-CO2 CO2-amount / 20 [ set shape "CO2" setxy random-Xcor (cell-top + random (ocean-top - cell-top) + 1) set size 3 ]
+  create-CO2 CO2-amount / 10 [ set shape "CO2" setxy random-Xcor (cell-top + random (ocean-top - cell-top) + 1) set size 3 set color [0 0 0 100] ]
 end
   
 
 to setup-calvincycle
-  set animationRate 1  ;;bug note... if this is set to another number, the pumpArrows may not work
-  
   ;; create Calvin Cycle loop
   create-membranes 1 [
     set shape "circle 2"
     set heading 0
-    set color red
+    set color black
     setxy (-0.4 * max-pxcor) (-0.4 * max-pycor)
     set size 10
     set name "calvinCycle"
     set label-color black
     set label name
     ]
-  
-  ;; create arrows on CCM Transporters  
-  create-membranes 3 [
-    set shape "arrow"
-    set heading 180
-    set color white
-    set size 1
-    set name "pumpArrows"  
-    ]
-    
-    ;; place arrows on CCM Transporters
-    ask membranes with [ who = 30 ] [ setxy (-0.4 * max-pxcor) (0.17 * max-pycor + 1) ]
-    ask membranes with [ who = 31 ] [ setxy (-0.4 * max-pxcor) (0.38 * max-pycor + 1) ]
-    ask membranes with [ who = 32 ] [ setxy (-0.4 * max-pxcor) (0.62 * max-pycor + 1) ]
-    
 end
 
 
 
 to setup-membranes
   ;; Create 4 membranes for the cell membrane, the chloroplast membrane, the plasmid membrane, and the nuclear membrane... cell wall left out for simplicity
-  create-membranes 4
-  set-default-shape membranes "square 3"
-  ask membranes with [ who = 1 ] [ set name "cell" setxy (0 * max-pxcor) (0 * max-pycor) set color black set size 2.5 * max-pycor set heading 0 ]
-  ask membranes with [ who = 2 ] [ set name "chloroplast" setxy (-0.25 * max-pxcor) (-0.3 * max-pycor) set color black set size 1.7 * max-pycor set heading 90]
-  ask membranes with [ who = 3 ] [ set name "plastid" set shape "square 4" setxy (-0.25 * max-pxcor) (-0.48 * max-pycor) set color black set size 1.6 * max-pycor set heading 90]
-  ask membranes with [ who = 4 ] [ set name "nucleus" setxy (0.6 * max-pxcor) (-0.1 * max-pycor) set color black set size 0.8 * max-pycor set heading 90]
+  create-membranes 4 [ set shape "square 3" set color black ] 
+  ask membranes with [ who = 1 ] [ set name "cell" setxy (0 * max-pxcor) (0 * max-pycor)  set size 2.5 * max-pycor set heading 0 ]
+  ask membranes with [ who = 2 ] [ set name "chloroplast" setxy (-0.25 * max-pxcor) (-0.3 * max-pycor) set size 1.7 * max-pycor set heading 90]
+  ask membranes with [ who = 3 ] [ set name "plastid" set shape "square 4" setxy (-0.25 * max-pxcor) (-0.48 * max-pycor) set size 1.6 * max-pycor set heading 90]
+  ask membranes with [ who = 4 ] [ set name "nucleus" setxy (0.6 * max-pxcor) (-0.1 * max-pycor) set size 0.8 * max-pycor set heading 90]
 end
 
 
@@ -144,21 +133,23 @@ to setup-nodes
                                set nodetype "protein"
                                setxy (0.45 * max-pxcor) (0 * max-pycor)                               
                                ]        
-  ;;Gamma Carbonic Anhydrase
+  ;;Gamma Carbonic Anhydrase - REMOVED
   ask nodes with [ who = 9 ] [ set name "Gamma Carbonic Anhydrase" 
                                set nodetype "protein"
-                               setxy (0 * max-pxcor) (0.28 * max-pycor)                               
+                               setxy (0 * max-pxcor) (0.28 * max-pycor)   
+                               hide-turtle                             
                                ]
   ;;CCM Transporter
   ask nodes with [ who = 10 ] [ set name "CCM Transporter" 
-                               set nodetype "transporter"
-                               setxy (-0.4 * max-pxcor) (0.17 * max-pycor)                               
+                               set nodetype "activeTransporter"
+                               setxy (-0.4 * max-pxcor) (0.16 * max-pycor)                               
                                ]
-  ;;  262258 Transporter
+  ;;  262258 Transporter - REMOVED
   ask nodes with [ who = 11 ] [ set name "262258 Transporter" 
-                               set nodetype "transporter"
+                               set nodetype "activeTransporter"
                                setxy (-0.7 * max-pxcor) (0.17 * max-pycor)
-                               set amount 50                               
+                               set amount 50    
+                               hide-turtle                           
                                ]
   
   ;;CCM Transporter
@@ -179,7 +170,8 @@ to setup-nodes
   ask nodes with [ nodetype = "control" ] [ set shape "triangle" ]
   ask nodes with [ nodetype = "protein" ] [ set shape "square" ]
   ask nodes with [ nodetype = "messenger" ] [ set shape "pentagon" ]
-  ask nodes with [ nodetype = "transporter" ] [ set shape "rectangle"]
+  ask nodes with [ nodetype = "transporter" ] [ set shape "transport" set color 109 ]
+  ask nodes with [ nodetype = "activeTransporter" ] [ set shape "rectangle" set color orange ]
   
   ;; set general node variables  
   ask nodes [set label name 
@@ -199,10 +191,8 @@ to setup-edges
   ask nodes with [ name = "CO2" ] [ connect-to (turtle 6) "sensing" ]
   ask nodes with [ name = "CYCc" ] [ connect-to (turtle 7) "signaling" ]
   ask nodes with [ name = "cAMP" ] [ connect-to (turtle 8) "signaling" ]
-  ask nodes with [ name = "Transcription Factor" ] [ connect-to (turtle 9) "signaling" 
-                                                     connect-to (turtle 10) "signaling"
-  ]
-  
+  ask nodes with [ name = "Transcription Factor" ] [ connect-to (turtle 10) "signaling" ]
+    
 end
 
 
@@ -264,94 +254,119 @@ end
 ;; ***** RUNTIME PROCEDURES *****
 
 to go
+    
     if( G3Pcount = Amount-of-G3P-to-Produce ) [ stop ]
     update-nodes
     run-animation
+    run-CO2
     pump-CO2
     do-plots
-    
     tick
 end
 
 
-to pump-CO2
-  ;; uses size of transporter to randomly determine if a CO2 can move in... transporters range in size from 1.5 to 5.5
-  if ( count CO2 > 0 ) [
-    ask nodes with [ who = 13 ] [ if (size - 0.5)  > random 5 AND knockedout? = false [ ask one-of CO2 [if ycor > cell-top [ set ATPcount ATPcount + ATP-per-CO2Transport setxy (chloroplast-left + random (chloroplast-right - chloroplast-left)) (chloroplast-top + random (cell-top - chloroplast-top - 1) + 1) ] ] ] ]
-    ask nodes with [ who = 12 ] [ if (size - 0.5) > random 5 AND knockedout? = false [ ask one-of CO2 [if ( ycor < cell-top AND ycor > chloroplast-top ) [ set ATPcount ATPcount + ATP-per-CO2Transport setxy (plasmid-left + random (plasmid-right - plasmid-left)) (plasmid-top + random (chloroplast-top - plasmid-top - 1) + 1) ] ] ] ]
-    ask nodes with [ who = 10 ] [ if (size - 0.5) > random 5 AND knockedout? = false [ ask one-of CO2 [if ( ycor < chloroplast-top AND ycor > plasmid-top ) [ set ATPcount ATPcount + ATP-per-CO2Transport setxy -0.4 * max-pxcor -2 ] ] ] ] 
+to run-CO2
+  if (ticks - tickCounter > animationRate) [
+    ask CO2 [ if ycor > cell-top [ setxy random-Xcor (cell-top + random (ocean-top - cell-top) + 1)  set heading random 360 ]]
+    ask CO2 [ if ycor < cell-top AND ycor > chloroplast-top [setxy (chloroplast-left + random (chloroplast-right - chloroplast-left)) (chloroplast-top + random (cell-top - chloroplast-top - 1) + 1)  set heading random 360 ]]
+    ask CO2 [ if ycor < chloroplast-top AND ycor > plasmid-top [setxy (plasmid-left + random (plasmid-right - plasmid-left)) (plasmid-top + random (chloroplast-top - plasmid-top - 1) + 1)  set heading random 360 ]]
+    ask CO2 [ if ycor < plasmid-top AND calvinCycle-location != 1 AND  calvinCycle-location != 2 AND calvinCycle-location != 3 AND calvinCycle-location != 4 [setxy (plasmid-left + random (plasmid-right - plasmid-left)) (plasmid-top - 3 + random 3 )  set heading random 360 ]]
+    set tickCounter ticks 
   ]
+end
+
+to pump-CO2
+  ask nodes with [ who = 10 ] [ if knockedout? = false  
+  [
+    diffuse-in (-0.4 * max-pxcor) (0.62 * max-pycor)
+    diffuse-out (-0.4 * max-pxcor) (0.62 * max-pycor)
+    diffuse-in (-0.4 * max-pxcor) (0.38 * max-pycor)
+    diffuse-out (-0.4 * max-pxcor) (0.38 * max-pycor)
+    if ( count CO2 with [ ycor < plasmid-top ] < 30 ) [ pump-in (-0.4 * max-pxcor) (0.16 * max-pycor) ]
+   ]]
 end 
+
+to pump-in [ xlocation ylocation ]
+  ask patches with [ pxcor > xlocation - 800 / CO2-amount AND pxcor < xlocation + 800 / CO2-amount  AND pycor > ylocation AND pycor < ylocation + 1.5 ] [ if any? CO2-here [ ask one-of CO2-here [set ycor ycor - 3 set heading one-of [ 90 270 ] fd 4 set ATPcount ATPcount + ATP-per-CO2Transport ]]]
+end
+
+to diffuse-in [ xlocation ylocation ]
+  ask patches with [ pxcor > xlocation - 800 / CO2-amount AND pxcor < xlocation + 800 / CO2-amount  AND pycor > ylocation AND pycor < ylocation + 1.5 ] [ if any? CO2-here [ ask one-of CO2-here [set ycor ycor - 3 set heading one-of [ 90 270 ] fd 4 ]]]
+end
+
+to diffuse-out [ xlocation ylocation ]
+  ask patches with [ pxcor > xlocation - 800 / CO2-amount AND pxcor < xlocation + 800 / CO2-amount  AND pycor < ylocation AND pycor > ylocation - 1 ] [ if any? CO2-here [ ask one-of CO2-here [set ycor ycor + 3 set heading one-of [ 90 270 ] fd 4 ]]]
+end
+
 
 
 to run-animation
-  wait 0.05
+    
+  if ( runCalvinCycle? = true ) [
+    if (ticks - tickCounter > animationRate) [
+    
+    
+      ;; Rotate Calvin Cycle Arrow
+      ask membranes with [ name = "calvinCycle" ] [ set heading (heading - 10) ]
   
-  if (ticks - tickCounter > animationRate) [
-    
-    ;; Move Transporter Arrows up and down
-    ask membranes with [ name = "pumpArrows" ] [ ifelse ( ticks mod 3 = 0 ) [ setxy xcor ycor + 2  ] [  fd 1 ]]
-    
-    ;; Rotate Calvin Cycle Arrow
-    ask membranes with [ name = "calvinCycle" ] [ set heading (heading - 10) ]
-  
-    ;; Move CO2 molecules around Calvin Cycle
-    ifelse ( count CO2 with [ calvinCycle-location = 4 ] > 2 )
-    [
-      ;; create a G3P molecule from 3 CO2 molecules... have to change breed of CO2s otherwise there are issues with "nobody" errors when "ask one-of CO2" is called in pump-CO2 function
-      set ATPcount ATPcount + ATP-per-G3P
-      repeat 3 [ ask one-of CO2 with [ calvinCycle-location = 4 ] [ set calvinCycle-location 0 set breed deadTurtles die ] ] create-G3P 1 [ set shape "g3p" set size 4 setxy -0.4 * max-pxcor -0.8 * max-pycor set location 1 ]
-    ]
-    
-    [ ifelse ( any? CO2 with [ calvinCycle-location = 3 ] ) 
-      [ 
-        ask one-of CO2 with [ calvinCycle-location = 3 ] [ set heading 125 fd 3 set calvinCycle-location 4]
+      ;; Move CO2 molecules around Calvin Cycle
+      ifelse ( count CO2 with [ calvinCycle-location = 4 ] > 2 )
+      [
+        ;; create a G3P molecule from 3 CO2 molecules... have to change breed of CO2s otherwise there are issues with "nobody" errors when "ask one-of CO2" is called in pump-CO2 function
+      
+        repeat 3 [ ask one-of CO2 with [ calvinCycle-location = 4 ] [ set calvinCycle-location 0 set breed deadTurtles die ] ] create-G3P 1 [ set shape "g3p" set size 4 setxy -0.4 * max-pxcor -0.8 * max-pycor set location 1 ]
       ]
-        
-      [ ifelse ( any? CO2 with [ calvinCycle-location = 2 ] ) 
-        [
-          ask one-of CO2 with [ calvinCycle-location = 2 ] [ set heading 165 fd 3 set calvinCycle-location 3]
-        ]
     
-        [ ifelse ( any? CO2 with [ calvinCycle-location = 1 ] ) 
-          [ 
-            ask one-of CO2 with [ calvinCycle-location = 1 ] [ set heading 200 fd 3 set calvinCycle-location 2 ]
-          ]
+      [ ifelse ( any? CO2 with [ calvinCycle-location = 3 ] ) 
+        [ 
+          ask one-of CO2 with [ calvinCycle-location = 3 ] [ set heading 125 fd 3 set calvinCycle-location 4]
+        ]
         
-          [ if ( any? CO2 with [ xcor = -0.4 * max-pxcor AND ycor = -2 ] ) 
+        [ ifelse ( any? CO2 with [ calvinCycle-location = 2 ] ) 
+          [
+            ask one-of CO2 with [ calvinCycle-location = 2 ] [ set heading 165 fd 3 set calvinCycle-location 3]
+          ]
+    
+          [ ifelse ( any? CO2 with [ calvinCycle-location = 1 ] ) 
             [ 
-              ask one-of CO2 with [ xcor = -0.4 * max-pxcor AND ycor = -2 ] [ set heading 250 fd 3 set calvinCycle-location 1 ] 
+              ask one-of CO2 with [ calvinCycle-location = 1 ] [ set heading 200 fd 3 set calvinCycle-location 2 ]
+            ]
+        
+            [ if ( any? CO2 with [  ycor < plasmid-top AND ycor > plasmid-top - 2 ] ) 
+              [ 
+                ask one-of CO2 with [  ycor < plasmid-top AND ycor > plasmid-top - 2 ] [ setxy -0.4 * max-pxcor -2 set heading 250 fd 3 set calvinCycle-location 1 ] 
+              ]
             ]
           ]
         ]
       ]
-    ]
     
-    ;; Move G3P over to graph
-   ifelse ( any? G3P with [ location = 4 ] )
-   [
-     ask one-of G3P with [ location = 4 ] [ set G3Pcount G3Pcount + 1 set location 0 set breed deadTurtles die ]
-   ]
-   [ ifelse ( any? G3P with [ location = 3 ] ) 
-      [ 
-        ask one-of G3P with [ location = 3 ] [  fd 3 set location 4 ]
+      ;; Move G3P over to graph
+      ifelse ( any? G3P with [ location = 4 ] )
+      [
+        ask one-of G3P with [ location = 4 ] [ set G3Pcount G3Pcount + 1 set location 0 set breed deadTurtles die ]
       ]
+      [ ifelse ( any? G3P with [ location = 3 ] ) 
+        [ 
+          ask one-of G3P with [ location = 3 ] [  fd 3 set location 4 ]
+        ]
         
-      [ ifelse ( any? G3P with [ location = 2 ] ) 
-        [
-          ask one-of G3P with [ location = 2 ] [ fd 3 set location 3]
-        ]
-    
-        [ if ( any? G3P with [ location = 1 ] ) 
-          [ 
-            ask one-of G3P with [ location = 1 ] [ set heading 280 fd 3 set location 2 ]
+        [ ifelse ( any? G3P with [ location = 2 ] ) 
+          [
+            ask one-of G3P with [ location = 2 ] [ fd 3 set location 3]
           ]
-        ]
-      ] 
-   ]
+        
+          [ if ( any? G3P with [ location = 1 ] ) 
+            [ 
+              ask one-of G3P with [ location = 1 ] [ set heading 280 fd 3 set location 2 ]
+            ]
+          ]
+        ] 
+      ]
     
     
-    set tickCounter ticks 
+      
+    ]
   ]
 end
 
@@ -389,8 +404,7 @@ to update-display ;; node procedure
   ifelse knockedout? = true [ set color 109 ] [
     if nodetype = "control"  [ set color scale-color yellow amount 220 -20]
     if nodetype = "protein"  [ set color scale-color green amount 220 -20 ]
-    if nodetype = "messenger" [ set color scale-color orange amount 220 -20 ]
-    if nodetype = "transporter" [ set color scale-color violet amount 220 -50 ]]
+    if nodetype = "messenger" [ set color scale-color orange amount 220 -20 ] ]
 end
 
 
@@ -418,10 +432,17 @@ end
 ;; *********  GRAPHING PROCEDURES **********************
 
 to do-plots
-  set-current-plot "glyceraldehyde-3-phosphate (G3P)"
-  set-current-plot-pen "G3P"
-  plot G3Pcount
     
+  set-current-plot "CO2 Distribution"
+  set-current-plot-pen "OceanCO2"
+  plot count CO2 with [ ycor > cell-top ]
+  set-current-plot-pen "CytoplasmCO2"
+  plot count CO2 with [ ycor < cell-top AND ycor > chloroplast-top ]
+  set-current-plot-pen "ChloroplastCO2"
+  plot count CO2 with [ ycor < chloroplast-top AND ycor > plasmid-top] 
+  set-current-plot-pen "PlasmidCO2"
+  plot count CO2 with [ ycor < plasmid-top ]
+     
   set-current-plot "ATP Used"
   set-current-plot-pen "ATP"
   plot ATPcount
@@ -433,27 +454,27 @@ to do-plots
     
     set-current-plot-pen "TCA"
     plot50 0 0
-    plot100 50 scale CO2-amount CO2-ppm-min CO2-ppm-max 0 -2 
+    plot100 50 scale CO2-amount ( CO2-ppm-min - 10 ) CO2-ppm-max 0 -2 
     
     set-current-plot-pen "Photosynthesis"
     plot50 150 0
-    plot100 200 scale CO2-amount CO2-ppm-min CO2-ppm-max 0 -1.5 
+    plot100 200 scale CO2-amount ( CO2-ppm-min - 10 ) CO2-ppm-max 0 -1.5 
     
     set-current-plot-pen "Kinases"
     plot50 300 0
-    plot100 350 scale CO2-amount CO2-ppm-min CO2-ppm-max 0 -4.5 
+    plot100 350 scale CO2-amount ( CO2-ppm-min - 10 ) CO2-ppm-max 0 -4.5 
     
     set-current-plot-pen "Transcription"
     plot50 450 0
-    plot100 500 scale CO2-amount CO2-ppm-min CO2-ppm-max 0 -4 
+    plot100 500 scale CO2-amount ( CO2-ppm-min - 10 ) CO2-ppm-max 0 -4 
     
     set-current-plot-pen "Ribosome"
     plot50 600 0
-    plot100 650 scale CO2-amount CO2-ppm-min CO2-ppm-max 0 4 
+    plot100 650 scale CO2-amount ( CO2-ppm-min - 10 ) CO2-ppm-max 0 4 
     
     set-current-plot-pen "Ion Transport"
     plot50 750 0
-    plot100 800 scale CO2-amount CO2-ppm-min CO2-ppm-max 0 -5 
+    plot100 800 scale CO2-amount ( CO2-ppm-min - 10 ) CO2-ppm-max 0 -5 
     
     set CO2-current CO2-amount 
       
@@ -520,7 +541,7 @@ CO2-amount
 CO2-amount
 CO2-ppm-min
 CO2-ppm-max
-300
+400
 100
 1
 ppm
@@ -561,10 +582,10 @@ NIL
 1
 
 BUTTON
-87
-201
-287
-234
+73
+160
+273
+193
 knockout cAMP with IBMX
 knockout \"cAMP\"
 NIL
@@ -578,10 +599,10 @@ NIL
 1
 
 BUTTON
-109
-247
-255
-280
+95
+206
+241
+239
 Reactive cAMP
 reactivate \"cAMP\"
 NIL
@@ -593,24 +614,6 @@ NIL
 NIL
 NIL
 1
-
-PLOT
-24
-537
-350
-747
-glyceraldehyde-3-phosphate (G3P)
-NIL
-NIL
-0.0
-10.0
-0.0
-5.0
-true
-false
-"" ""
-PENS
-"G3P" 1.0 0 -16777216 true "" ""
 
 PLOT
 24
@@ -631,10 +634,10 @@ PENS
 "ATP" 1.0 0 -16777216 true "" ""
 
 SLIDER
-27
-147
-299
-180
+39
+701
+311
+734
 Amount-of-G3P-to-Produce
 Amount-of-G3P-to-Produce
 0
@@ -670,31 +673,6 @@ PENS
 "pen-6" 1.0 0 -16777216 false "" ";; we don't want the \"auto-plot\" feature to cause the\n;; plot's x range to grow when we draw the axis.  so\n;; first we turn auto-plot off temporarily\nauto-plot-off\n;; now we draw an axis by drawing a line from the origin...\nplotxy 0 0\n;; ...to a point that's way, way, way off to the right.\nplotxy 1000000000 0\n;; now that we're done drawing the axis, we can turn\n;; auto-plot back on again"
 
 TEXTBOX
-1347
-575
-1497
-600
-For Gabe
-20
-0.0
-1
-
-SLIDER
-1260
-627
-1462
-660
-ATP-per-CO2Transport
-ATP-per-CO2Transport
-0
-3
-0.1
-0.1
-1
-NIL
-HORIZONTAL
-
-TEXTBOX
 393
 193
 543
@@ -719,7 +697,7 @@ TEXTBOX
 695
 586
 714
-Plastid
+Plasmid
 15
 0.0
 1
@@ -732,6 +710,61 @@ TEXTBOX
 Chloroplast
 15
 0.0
+1
+
+PLOT
+1103
+450
+1719
+780
+CO2 Distribution
+NIL
+NIL
+0.0
+10.0
+0.0
+10.0
+true
+true
+"" ""
+PENS
+"OceanCO2" 1.0 0 -16777216 true "" ""
+"CytoplasmCO2" 1.0 0 -13840069 true "" ""
+"ChloroplastCO2" 1.0 0 -2674135 true "" ""
+"PlasmidCO2" 1.0 0 -955883 true "" ""
+
+BUTTON
+37
+650
+170
+683
+Calvin Cycle On
+set runCalvinCycle? true
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
+
+BUTTON
+186
+650
+320
+683
+Calvin Cycle Off
+set runCalvinCycle? false
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
 1
 
 @#$#@#$#@
@@ -997,7 +1030,19 @@ Polygon -7500403 true true 135 90 120 45 150 15 180 45 165 90
 rectangle
 false
 0
-Rectangle -7500403 true true 90 60 210 240
+Rectangle -7500403 true true 45 120 255 180
+Line -16777216 false 15 90 45 120
+Line -16777216 false 45 120 45 180
+Line -16777216 false 45 180 15 210
+Line -16777216 false 285 90 255 120
+Line -16777216 false 255 120 255 180
+Line -16777216 false 255 180 285 210
+Line -16777216 false 120 135 120 165
+Line -16777216 false 120 165 135 150
+Line -16777216 false 120 165 105 150
+Line -16777216 false 180 135 180 165
+Line -16777216 false 180 165 195 150
+Line -16777216 false 180 165 165 150
 
 selectablecircle
 false
@@ -1113,6 +1158,17 @@ Circle -16777216 true false 30 30 240
 Circle -7500403 true true 60 60 180
 Circle -16777216 true false 90 90 120
 Circle -7500403 true true 120 120 60
+
+transport
+false
+0
+Rectangle -7500403 true true 45 105 255 195
+Line -16777216 false 45 90 45 210
+Line -16777216 false 255 90 255 210
+Line -16777216 false 45 90 30 75
+Line -16777216 false 45 210 30 225
+Line -16777216 false 255 90 270 75
+Line -16777216 false 255 210 270 225
 
 tree
 false
