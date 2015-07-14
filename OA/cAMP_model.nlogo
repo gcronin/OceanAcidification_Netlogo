@@ -20,7 +20,7 @@ breed [ deadTurtles ]
 globals [ runCalvinCycle? tickCounter animationRate  
   ocean-top cell-top chloroplast-top plasmid-top cell-left cell-right chloroplast-left chloroplast-right plasmid-left plasmid-right 
   G3Pcount 
-  ATPcount ATP-per-CO2Transport
+  ATPcount ATP-per-CO2Transport ATP-Transport-Size-Cost
   slope CO2-ppm-min CO2-ppm-max CO2-current 
   i 
   cAMP-ko-status
@@ -39,8 +39,9 @@ edge-bodies-own [ parent-edge ]
 
 to setup
   clear-all
-  ask patches [ set pcolor 109 ]   ;; set background color
-
+  ask patches [ set pcolor 109 ]   ;; set background color 109
+  
+  set ATP-Transport-Size-Cost 0.2
   set ATP-per-CO2Transport 1
   set CO2-ppm-min 400
   set CO2-ppm-max 800
@@ -71,7 +72,7 @@ to setup-CO2
   set chloroplast-right 3
   set plasmid-left min-pxcor + 2
   set plasmid-right 2
-  create-CO2 CO2-amount / 10 [ set shape "CO2" setxy random-Xcor (cell-top + random (ocean-top - cell-top) + 1) set size 3 set color [0 0 0 100] ]
+  create-CO2 CO2-amount / 10 [ set shape "CO2" setxy random-Xcor (cell-top + random (ocean-top - cell-top) + 1) set size 3 set color [0 0 0 100] ]  ;; last command of "set color" is used to increase their transparency
 end
   
 
@@ -146,7 +147,7 @@ to setup-nodes
                                ]
   ;;  262258 Transporter - REMOVED
   ask nodes with [ who = 11 ] [ set name "262258 Transporter" 
-                               set nodetype "activeTransporter"
+                               set nodetype "activeTransporterNoShow"
                                setxy (-0.7 * max-pxcor) (0.17 * max-pycor)
                                set amount 50    
                                hide-turtle                           
@@ -270,7 +271,7 @@ to run-CO2
     ask CO2 [ if ycor > cell-top [ setxy random-Xcor (cell-top + random (ocean-top - cell-top) + 1)  set heading random 360 ]]
     ask CO2 [ if ycor < cell-top AND ycor > chloroplast-top [setxy (chloroplast-left + random (chloroplast-right - chloroplast-left)) (chloroplast-top + random (cell-top - chloroplast-top - 1) + 1)  set heading random 360 ]]
     ask CO2 [ if ycor < chloroplast-top AND ycor > plasmid-top [setxy (plasmid-left + random (plasmid-right - plasmid-left)) (plasmid-top + random (chloroplast-top - plasmid-top - 1) + 1)  set heading random 360 ]]
-    ask CO2 [ if ycor < plasmid-top AND calvinCycle-location != 1 AND  calvinCycle-location != 2 AND calvinCycle-location != 3 AND calvinCycle-location != 4 [setxy (plasmid-left + random (plasmid-right - plasmid-left)) (plasmid-top - 3 + random 3 )  set heading random 360 ]]
+    ask CO2 [ if ycor < plasmid-top AND calvinCycle-location != 1 AND  calvinCycle-location != 2 AND calvinCycle-location != 3 AND calvinCycle-location != 4 [setxy (plasmid-left + random (plasmid-right - plasmid-left)) (plasmid-top - 3 + random 3 )  set heading random 360  ]]
     set tickCounter ticks 
   ]
 end
@@ -282,12 +283,12 @@ to pump-CO2
     diffuse-out (-0.4 * max-pxcor) (0.62 * max-pycor)
     diffuse-in (-0.4 * max-pxcor) (0.38 * max-pycor)
     diffuse-out (-0.4 * max-pxcor) (0.38 * max-pycor)
-    if ( count CO2 with [ ycor < plasmid-top ] < 30 ) [ pump-in (-0.4 * max-pxcor) (0.16 * max-pycor) ]
+    if ( count CO2 with [ ycor < plasmid-top ] < 30 ) [ pump-in (-0.4 * max-pxcor) (0.16 * max-pycor) set ATPcount ( ATPcount + ATP-Transport-Size-Cost * (  [size] of one-of nodes with [ name = "CCM Transporter" ] ) / 100 ) ]
    ]]
 end 
 
 to pump-in [ xlocation ylocation ]
-  ask patches with [ pxcor > xlocation - 800 / CO2-amount AND pxcor < xlocation + 800 / CO2-amount  AND pycor > ylocation AND pycor < ylocation + 1.5 ] [ if any? CO2-here [ ask one-of CO2-here [set ycor ycor - 3 set heading one-of [ 90 270 ] fd 4 set ATPcount ATPcount + ATP-per-CO2Transport ]]]
+  ask patches with [ pxcor > xlocation - 800 / CO2-amount AND pxcor < xlocation + 800 / CO2-amount  AND pycor > ylocation AND pycor < ylocation + 1.5 ] [ if any? CO2-here [ ask one-of CO2-here [set ycor ycor - 3 set heading one-of [ 90 270 ] fd 4 set ATPcount ATPcount + ATP-per-CO2Transport hatch 1 [ set shape "CO2" setxy random-Xcor (cell-top + random (ocean-top - cell-top) + 1)  set heading random 360 ]]]]
 end
 
 to diffuse-in [ xlocation ylocation ]
@@ -335,6 +336,7 @@ to run-animation
             [ if ( any? CO2 with [  ycor < plasmid-top AND ycor > plasmid-top - 2 ] ) 
               [ 
                 ask one-of CO2 with [  ycor < plasmid-top AND ycor > plasmid-top - 2 ] [ setxy -0.4 * max-pxcor -2 set heading 250 fd 3 set calvinCycle-location 1 ] 
+                
               ]
             ]
           ]
@@ -401,10 +403,12 @@ to update-display ;; node procedure
   set size ((amount / 25) + 1.5)
   
   ;; set colors
-  ifelse knockedout? = true [ set color 109 ] [
+  ifelse knockedout? = true [ set color 109 if nodetype = "transporter" OR nodetype = "activeTransporter"[ set shape "transport-closed" ] ] [
     if nodetype = "control"  [ set color scale-color yellow amount 220 -20]
     if nodetype = "protein"  [ set color scale-color green amount 220 -20 ]
-    if nodetype = "messenger" [ set color scale-color orange amount 220 -20 ] ]
+    if nodetype = "messenger" [ set color scale-color orange amount 220 -20 ] 
+    if nodetype = "transporter" [ set shape "transport"  ]
+    if nodetype = "activeTransporter" [ set shape "rectangle" set color orange ] ]
 end
 
 
@@ -432,16 +436,21 @@ end
 ;; *********  GRAPHING PROCEDURES **********************
 
 to do-plots
+  
+  let ocean-patch-count 198
+  let cell-patch-count 54
+  let chloroplast-patch-count 48
+  let plasmid-patch-count 48
     
-  set-current-plot "CO2 Distribution"
-  set-current-plot-pen "OceanCO2"
-  plot count CO2 with [ ycor > cell-top ]
-  set-current-plot-pen "CytoplasmCO2"
-  plot count CO2 with [ ycor < cell-top AND ycor > chloroplast-top ]
-  set-current-plot-pen "ChloroplastCO2"
-  plot count CO2 with [ ycor < chloroplast-top AND ycor > plasmid-top] 
-  set-current-plot-pen "PlasmidCO2"
-  plot count CO2 with [ ycor < plasmid-top ]
+  set-current-plot "CO2 Concentrations"
+  set-current-plot-pen "Ocean"
+  plot ( count CO2 with [ ycor > cell-top ] ) / ocean-patch-count
+  set-current-plot-pen "Cytoplasm"
+  plot ( count CO2 with [ ycor < cell-top AND ycor > chloroplast-top ] ) / cell-patch-count
+  set-current-plot-pen "Chloroplast"
+  plot ( count CO2 with [ ycor < chloroplast-top AND ycor > plasmid-top] ) / chloroplast-patch-count
+  set-current-plot-pen "Plasmid"
+  plot ( count CO2 with [ ycor < plasmid-top ] ) / plasmid-patch-count
      
   set-current-plot "ATP Used"
   set-current-plot-pen "ATP"
@@ -541,7 +550,7 @@ CO2-amount
 CO2-amount
 CO2-ppm-min
 CO2-ppm-max
-400
+600
 100
 1
 ppm
@@ -641,8 +650,8 @@ SLIDER
 Amount-of-G3P-to-Produce
 Amount-of-G3P-to-Produce
 0
-5
-3
+10
+10
 1
 1
 NIL
@@ -717,21 +726,21 @@ PLOT
 450
 1719
 780
-CO2 Distribution
+CO2 Concentrations
 NIL
-NIL
+turtles/patch
 0.0
-10.0
+1.0
 0.0
-10.0
+0.5
 true
 true
 "" ""
 PENS
-"OceanCO2" 1.0 0 -16777216 true "" ""
-"CytoplasmCO2" 1.0 0 -13840069 true "" ""
-"ChloroplastCO2" 1.0 0 -2674135 true "" ""
-"PlasmidCO2" 1.0 0 -955883 true "" ""
+"Ocean" 1.0 0 -16777216 true "" ""
+"Cytoplasm" 1.0 0 -13840069 true "" ""
+"Chloroplast" 1.0 0 -2674135 true "" ""
+"Plasmid" 1.0 0 -955883 true "" ""
 
 BUTTON
 37
@@ -770,39 +779,77 @@ NIL
 @#$#@#$#@
 ## WHAT IS IT?
 
-(a general understanding of what the model is trying to show or explain)
+This model shows how diatoms adjust to changing concentrations of carbon dioxide in seawater, based on the research of Hennon et. al. “Diatom Acclimation to elevated CO2 via cAMP signaling and coordinated gene expression”, Nature Climate Change, June 2015 .   They are two aspects to the world.  The first is agent based, where carbon dioxide molecules either diffuse or are shuttled into the plasmid through carbon-concentration mechanism (CCM) transporters.  The second shows a gene pathway which is hypothesized to control the action of the CCM system.  
 
 ## HOW IT WORKS
 
-(what rules the agents use to create the overall behavior of the model)
+The gene pathway involves a series of nodes and edges, each of which are turtles.  All of these turtles stay in one place, but change size and color.  Edges are setup between nodes in order to show the network.   During “Go”, the nodes perform a function called "update-nodes" where their size varies either directly (CO2, CYCc, cAMP, Transcription Factor) or indirectly (CCM Tranporters) with the "CO2-amount" slider.  The cAMP node can also be “knocked out” using a button on the interface screen, or reactivated.  Once “knocked-out”, the observer calls a function “toggle-cAMP” which sets the “knockedout?” variables owned by cAMP, Transcription Factor, and CCM Transporters to be true.  When “update-nodes” is called during the next tick cycle, an “if” statement checks to see if nodes have “knockedout?” equal to “true”, and if so sets the size of these nodes to be very small and their color to be that of the patches, so that the nodes disappear.  Reactivating reverses the process, setting the “knockedout?” variable of the relevant nodes equal to “false”.
+
+The agent based model consists of turtles called CO2 which look like a carbon dioxide molecule.  Then can be in one of four spaces… in the ocean, in the cell, in the chloroplast, or in the plasmid.  The number of CO2 which are initially created in the ocean is equal to one tenth of the slider value of "CO2-amount".   Each tick, CO2 molecules randomly move within their existing space based on the “run-CO2” function which just gives them a random xy location, and changes their heading randomly.
+
+Three nodes called CCM Transporters use three functions called “pump-in”, “diffuse-in”, and “diffuse-out” to ask patches directly above (“pump-in” or “diffuse-in”) or below (“diffuse-out”) themselves if any? CO2 molecule are on those patches.  If so, they ask one-of those CO2 molecules to move one space further into the cell (“pump-in” or “diffuse-in”) or one space further out of the cell (“diffuse-out”).   The “pump-in” function only happens if the CCM transporters are not “knockedout?”.   All three of these functions ask more patches if the nodes are larger (see Netlogo features below), so that the movement rate of CO2 depends directly on the size of the CCM transporters.
+
+Pumping continues until the number of CO2 molecules in the plasmid is 30 (an arbitrary choice).   Each time that a CO2 is pumped into the plasmid, a new CO2 is created in the ocean.  This allows for a sort of steady state to be reached in the model.
+
+A graph shows the concentrations of CO2 in the four spaces.  Concentrations are calculated by counting the CO2 int those spaces and then dividing by the number of patches in those spaces.
+
+The world includes an animation of the Calvin Cycle which can be turned on and off using buttons on the interface.  The function “run-animation” spins a turtle called “Calvin Cycle”.  It also asks one CO2 turtle in the plasmid to move through a series of three locations making it appear that this molecule is moving through the Calvin cycle.  This CO2 molecule is “dropped” at the bottom of the rotating arrow.  Two more CO2 turtles are picked up and dropped, and when three CO2 turtles are in the last location, they are ask to die and a G3P turtle is created in the same location.  This represents the process of fixing CO2 into the three-carbon precursor of a sugar molecule.
+
+A graph show how much ATP has been "consumed."  In the model, ATP is used at a rate of 1 everytime a CO2 molecule is pumped into the plasmid, and also at a rate of ATP-Transport-Size-Cost * (  [size] of one-of nodes with [ name = "CCM Transporter" ] ) / 100 ) each tick provided that the CCM mechanism isn't knocked out and there are not 30 CO2 in the plasmid.  The goal is to represent the fact that the CCM transporter needs to work harder when there is less CO2 present.  
+
+The interface has a slider called Amount-of-G3P-to-Produce.  If the Calvin Cycle is "on", then G3P is being produced.  The amount of G3P is tracked in the global variable G3Pcount.  If this variable exceeds Amount-of-G3P-to-Produce, then the simulation is stopped.
+
 
 ## HOW TO USE IT
 
-(how to use the model, including a description of each of the items in the Interface tab)
+Chose the amount of CO2 in the water using the slider CO2-amount.  Click on setup.
+
+Click on Go.  Adjust the value of the slider CO2-amount and notice how the Gene Enrichment graph and the gene pathway nodes change.  
+
+Click on Knockout cAMP with IBMX and notice how the CCM transporters and the Gene Pathway change, and the CO2 molecules are no longer concentrated.
+
+Click on Reactivate cAMP to restart pumping.  
+
+Click on Calvin Cycle On to turn on the calvin cycle and start producing G3P.  The simulation will stop when enough G3P are made to equal the value of the slider called Amount-of-G3P-to-Produce.
+
 
 ## THINGS TO NOTICE
 
-(suggested things for the user to notice while running the model)
+Ultimately this model is about how the diatom might adjust to rising CO2 levels in the world's ocean as man continues to combust fossil fuels.  Here are some questions you can think about to see how the diatoms might adjust.
 
-## THINGS TO TRY
+1. How do the final concentration of CO2 in the various spaces compare?  How do these concentrations change as the level of CO2 is changed?
 
-(suggested things for the user to try to do (move sliders, switches, etc.) with the model)
+2. Compare the amount of energy and the amount of time it takes to pump thirty CO2 into the plasmid under various initial amounts of CO2.
+
+3. Look at which cellular functions are up-regulated and down-regulated in the gene enrichment graph.  Look up the purposes of these cellular functions.  Why might the diatom respond as it does?
+
 
 ## EXTENDING THE MODEL
 
-(suggested things to add or change in the Code tab to make the model more complicated, detailed, accurate, etc.)
+Currently the CO2 in the model does not dynamically change when the "CO2-amount" slider is moved.   This can be deceptive since the graph and the gene pathway do change. 
 
 ## NETLOGO FEATURES
 
-(interesting or unusual features of NetLogo that the model uses, particularly in the Code tab; or where workarounds were needed for missing features)
+Several hacks were necessary to make this model function the way I wanted it to.  
+
+The graph which shows gene enrichment is a hacked bar graph.  I set the pens to be bar format, used a pen to make a horizonal line very far out on the x-axis, and then turned off autoscale.  I created a reporter ("scale") which scales the height of the bars in proportion to the CO2-amount as compared to the value of the variables CO2-ppm-high and CO2-ppm-low.  Each bar has a maximum value based on Figure 1c in the paper.  I created functions ("plot50" and "plot100") which just plot a point (which becomes a bar with the pen settings) over and over again (100 times for bars, 50 times for the space between bars), which creates the illusion of a real bar graph.  This graph is only updated if the slider CO2-amount has been changed by comparing CO2-amount to a global variable called CO2-current which is set only after the graph is updated.
+
+This animations which move the CO2 around the Calvin Cycle, and then move G3P were challenging because they require keeping track of one turtle, and moving it to specific locations sequentially.  To do this, I gave each CO2 a variable called "calvinCycle-location".  When the animation is on, the observer asks a turtle in the plasmid to move to a specific position, and to set its location variable to be "1".  The next time through the cycle, the observer first checks for any CO2 with calvinCycle-location = 4, 3, 2, or 1 before moving another CO2 into the Calvin Cycle.  In this manner it shuttles them around, moving a CO2 to a new position and setting its calvinCycle-location to be one higher, until it is 4.  The observer checks to see if there are 3 CO2s with calvinCycle-location = 4, and if not moves another CO2 into the cycle.  If there are 3 CO2s with calvinCycle-location = 4, the observer asks them to die and creates a G3P molecule, then runs a similar set of "if" statements to move the G3P, tracking its location with a "location" variable owned by the G3P.
+
+The method of varying the rate of CO2 transport based on the size of the CCM transporters works as follows:   a CCM node asked the patches with the following criteria if they have any CO2 turtles "here":  pxcor > xlocation - 800 / CO2-amount AND pxcor < xlocation + 800 / CO2-amount  AND pycor > ylocation AND pycor < ylocation + k
+.  The value of "k" was just used by trial and error until it worked.  The number of patches thus asked varies indirectly with the value of CO2-amount... less patches are asked with the CO2-amount is larger.  If any of the turtles are on these patches, one of them is asked to jump down into the next space.  I initially did this by setting its ycor to be greater, but this led to the problem that it would immediately diffuse out because it was in the space that was checked by the diffuse-out function.  A hack to get around this problem was to ask the CO2 which had just been shuttled in to move horizontally:
+
+set ycor ycor - 3 set heading one-of [ 90 270 ] fd 4 
+
+
+This process ensures it won't get diffused out immediately.  
 
 ## RELATED MODELS
 
-(models in the NetLogo Models Library and elsewhere which are of related interest)
 
 ## CREDITS AND REFERENCES
 
-(a reference to the model's URL on the web if it has one, as well as any other necessary credits, citations, and links)
+This model was developed with the help of Monica Orellana, Justin Ashworth, Mari Herbert, and Claudia Ludwig at the Institute for Systems Biology under the financial support of **** . 
 @#$#@#$#@
 default
 true
@@ -1169,6 +1216,16 @@ Line -16777216 false 45 90 30 75
 Line -16777216 false 45 210 30 225
 Line -16777216 false 255 90 270 75
 Line -16777216 false 255 210 270 225
+
+transport-closed
+false
+0
+Line -16777216 false 150 90 150 210
+Line -16777216 false 150 90 150 210
+Line -16777216 false 150 90 135 75
+Line -16777216 false 150 210 135 225
+Line -16777216 false 150 90 165 75
+Line -16777216 false 150 210 165 225
 
 tree
 false
