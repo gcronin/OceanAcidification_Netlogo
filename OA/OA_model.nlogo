@@ -35,7 +35,7 @@ to setup
   addNitrogen
   addSilicon
   addPhosphorous
-    
+      
   ;Create transcription factors, genes, cellular functions in appropriate locations at top
   let xlocation  -3 * max-pxcor / 4
   setupTFs xlocation
@@ -64,6 +64,8 @@ to go
       
   ;ifelse ( CO2 = 400 ) [ set growthRate 1 ] [ set growthRate 1 ]
   ifelse ( siliconCurrent > 0.1 * siliconMax and phosphorousCurrent > 0.1 * phosphorousMax  and nitrogenCurrent > 0.1 * nitrogenMax  ) [ set nutrientsPresent  true ] [ set nutrientsPresent  false ] ;10% threshold for low nutrients
+  
+  if ( mixing = true ) [ mix ]
     
   ; dusk ( end of 12hr light )
   ifelse ( Light = true ) [ 
@@ -152,7 +154,6 @@ to go
     move
     reproduce
     if ( health < 0 ) [ die ]
-    ;death_check
   ]
   
   set-current-plot "pH"
@@ -176,6 +177,10 @@ to setupPatches  ;Setup Patches:  Grey at top, black line in middle, sunlight or
   ask patches [ if (pycor <= -3 ) and (pycor >= min-pycor) [ set pcolor blue ]]
 end
 
+to mix
+ 
+end
+
 
 ;--------------------------------------------------------------------------------------------------------------------------
 ; ADD NUTRIENTS
@@ -187,7 +192,7 @@ to addNitrogen
     let randomX random-xcor
     ask patch randomX randomY [ ifelse pcolor = 15 [ ] [ set pcolor 15  set i ( i - 1 ) set plabel-color black  set plabel "N"] ]
     ]
-  set nitrogenCurrent ( nitrogenCurrent + Nitrogen )
+  set nitrogenCurrent ( nitrogenCurrent + Nitrogen ) 
 end
 
 to addSilicon
@@ -197,7 +202,7 @@ to addSilicon
     let randomX random-xcor
     ask patch randomX randomY [ ifelse ( pcolor = 15 OR pcolor = 116 ) [ ] [ set pcolor 116  set i ( i - 1 ) set plabel-color black  set plabel "Si"] ]
     ]
-  set siliconCurrent ( siliconCurrent + Silicon )
+  set siliconCurrent ( siliconCurrent + Silicon ) 
 end
 
 to addPhosphorous
@@ -207,7 +212,7 @@ to addPhosphorous
     let randomX random-xcor
     ask patch randomX randomY [ ifelse ( pcolor = 15 OR pcolor = 116 OR pcolor = 27 ) [ ] [ set pcolor 27  set i ( i - 1 ) set plabel-color black  set plabel "P"] ]
     ]
-  set phosphorousCurrent ( phosphorousCurrent + Phosphorous )
+  set phosphorousCurrent ( phosphorousCurrent + Phosphorous ) 
 end
 
 
@@ -247,13 +252,11 @@ end
   ]
 end
  
- to remove-CO2 ;; randomly remove 1 CO2 molecule
-  repeat 1 [
-    if any? CO2s [ 
+to remove-CO2 ;; randomly remove 1 CO2 molecule
+   if any? CO2s [ 
           
       ask one-of CO2s [ die ]
     ]
-  ]
 end
 
 
@@ -263,13 +266,7 @@ end
 
 to setupDiatoms
   set-default-shape diatoms "diatoms"
-  create-diatoms numDiatoms
-  ask diatoms [ set health initialHealth ]
-  let i 28
-  repeat numDiatoms [ ask diatom i [ 
-      setxy random-xcor (-1)* ( random (max-pycor - 2) + 3 )
-      set i i + 1 ]]
-
+  create-diatoms numDiatoms [ setxy random-xcor (-1)* ( random (max-pycor - 2) + 3 ) set health initialHealth ]
 end
 
 ;--------------------------------------------------------------------------------------------------------------------------
@@ -513,16 +510,6 @@ to reproduce
     ]  
 
 end
-
-; turtles die if health is too low, and can possibly redistribute some amount of their stored nutrients
-to death_check
-  if ( health < 0 ) [ 
-    repeat N [  ask one-of patches [ ifelse ( pcolor = 15 OR pcolor = 116 OR pcolor = 27 OR pycor > -3 ) [] [ set pcolor 15 set plabel-color black  set plabel "N" set nitrogenCurrent nitrogenCurrent + 1 ]  ] ]
-    repeat P [ ask one-of patches [ ifelse ( pcolor = 15 OR pcolor = 116 OR pcolor = 27 OR pycor > -3 ) [] [ set pcolor 116 set plabel-color black  set plabel "Si" set siliconCurrent siliconCurrent + 1 ]  ] ]
-    repeat Si [ ask one-of patches [ ifelse ( pcolor = 15 OR pcolor = 116 OR pcolor = 27 OR pycor > -3 ) [] [ set pcolor 27 set plabel-color black  set plabel "P" set nitrogenCurrent phosphorousCurrent + 1 ]  ] ]
-    die
-  ]
-end
 @#$#@#$#@
 GRAPHICS-WINDOW
 210
@@ -744,27 +731,36 @@ HORIZONTAL
 @#$#@#$#@
 ## WHAT IS IT?
 
-(a general understanding of what the model is trying to show or explain)
+This model is based on the work of Ashworth et. al. “Genome-wide diel growth state transitions in the diatom Thalassiosira pseudonana”, PNAS, vol. 110 no. 1,  7518–7523.   The purpose of the model is to show some of the effects of changing environmental conditions on diatoms both from a genetic point of view and also from an agent-based point of view.
 
 ## HOW IT WORKS
 
-(what rules the agents use to create the overall behavior of the model)
+The world is split into two different areas.  The top shows genetic expression of transcription factors, genes, and cellular functions, with green color indicating upregulation, red indicating downregulation, and orange indicated a combination of up- and down-regulation.  The size of these turtles is based on how much they are being regulated.  A preset series of rules are used to set the size and color based on the presence or absence of light, and the presence of absence of nutrients.  These rules were taken from the paper referenced above.
+ 
+The bottom part of the world is a model of diatoms in seawater.  The diatoms are green.  The seawater contains carbon dioxide (yellow dots), and nitrogen, phosphorous, and silicon nutrients (colored patches with labels).  Diatoms move randomly in the bottom space, can pick up nutrients if diatoms moves over a nutrient patch and a random check is made, and can reproduce if certain conditions are met.  Diatoms have a certain amount of health, and gain health when they pick up nutrients, but lose health as they move.   Diatoms can track how much of each nutrient they possess using the diatom-owned variables N, Si, and P.  With a finite level of nutrients present in the world, they all eventually die when their health is below zero, but the maximum population reached varies as a function of the environmental conditions.  
+
+In terms of reproduction, diatoms hatch another diatom if and only if they own at least one unit of Si, one unit of N, and if there is light on.  Reproducing costs them 0.2 units of N and 2 units of Si.
+
 
 ## HOW TO USE IT
 
-(how to use the model, including a description of each of the items in the Interface tab)
+Adjust the environmental conditions to those that you want.  You may turn light On or Off, turn mixing On or Off, set carbonDioxide slider to be 400ppm or 800ppm, and chose the relatively levels of nitrogen, silicon, and phosphorous using the slider.   Then click on the setup button.  Light and Mixing can be toggled on after the “Go” button is hit, but the nutrient levels (N, Si, P, and CO2) do not change after the “Go” button is hit.
 
 ## THINGS TO NOTICE
 
-(suggested things for the user to notice while running the model)
+Watch the graphs to see how the population of diatoms changes, how the nutrients are used up, how CO2 is depleted in the area as diatoms use it up, and how the pH of the seawater varies based on the CO2 level.
 
-## THINGS TO TRY
+Also, notice that changes in gene expression occur.  Try changing the light conditions during a run to see what transcription factors, genes, and cellular functions are present with light on or off.   Notice that as nutrients are used up, the gene expression changes drastically.
 
-(suggested things for the user to try to do (move sliders, switches, etc.) with the model)
 
 ## EXTENDING THE MODEL
 
-(suggested things to add or change in the Code tab to make the model more complicated, detailed, accurate, etc.)
+The mixing button currently does nothing.  It could be used to cause the nutrients to randomly shift patches.
+
+There is no effect of changing CO2  levels on growth of diatoms in the model.  The second line of the "Go" function is a line which is commented out, but which would change the global variable growthRate.  This variable determines how many diatoms are hatched in the function "reproduce".
+
+A binary system is in effect for whether the diatoms can pick up nutrients.  See "feed".  A random number between 0 and 19 is generated.  If nutrients levels are high, 10 is subtracted from this number.  If nutrients levels are low, the number is not changed.  Then the numbers if compared to 5, and if it is greater, the diatom "picks up" the nutrient.   This system seems artificial to me.
+
 
 ## NETLOGO FEATURES
 
@@ -772,11 +768,10 @@ HORIZONTAL
 
 ## RELATED MODELS
 
-(models in the NetLogo Models Library and elsewhere which are of related interest)
 
 ## CREDITS AND REFERENCES
 
-(a reference to the model's URL on the web if it has one, as well as any other necessary credits, citations, and links)
+This model was developed with the help of Monica Orellana, Justin Ashworth, Mari Herbert, and Claudia Ludwig at the Institute for Systems Biology under the financial support of **** .   The paper on which this model is based can be found here:  http://www.pnas.org/content/110/18/7518.abstract .
 @#$#@#$#@
 default
 true

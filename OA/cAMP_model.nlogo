@@ -18,7 +18,7 @@ breed [ G3P ]
 breed [ deadTurtles ]
 
 globals [ runCalvinCycle? tickCounter animationRate  
-  ocean-top cell-top chloroplast-top plasmid-top cell-left cell-right chloroplast-left chloroplast-right plasmid-left plasmid-right 
+  ocean-top cell-top chloroplast-top pyrenoid-top cell-left cell-right chloroplast-left chloroplast-right pyrenoid-left pyrenoid-right 
   G3Pcount 
   ATPcount ATP-per-CO2Transport ATP-Transport-Size-Cost
   slope CO2-ppm-min CO2-ppm-max CO2-current 
@@ -65,13 +65,13 @@ to setup-CO2
   set ocean-top max-pycor - 0
   set cell-top max-pycor - 6
   set chloroplast-top 6
-  set plasmid-top 2.5
+  set pyrenoid-top 2.5
   set cell-left min-pxcor
   set cell-right max-pxcor
   set chloroplast-left min-pxcor + 1
   set chloroplast-right 3
-  set plasmid-left min-pxcor + 2
-  set plasmid-right 2
+  set pyrenoid-left min-pxcor + 2
+  set pyrenoid-right 2
   create-CO2 CO2-amount / 10 [ set shape "CO2" setxy random-Xcor (cell-top + random (ocean-top - cell-top) + 1) set size 3 set color [0 0 0 100] ]  ;; last command of "set color" is used to increase their transparency
 end
   
@@ -93,7 +93,7 @@ end
 
 
 to setup-membranes
-  ;; Create 4 membranes for the cell membrane, the chloroplast membrane, the plasmid membrane, and the nuclear membrane... cell wall left out for simplicity
+  ;; Create 4 membranes for the cell membrane, the chloroplast membrane, the pyrenoid membrane, and the nuclear membrane... cell wall left out for simplicity
   create-membranes 4 [ set shape "square 3" set color black ] 
   ask membranes with [ who = 1 ] [ set name "cell" setxy (0 * max-pxcor) (0 * max-pycor)  set size 2.5 * max-pycor set heading 0 ]
   ask membranes with [ who = 2 ] [ set name "chloroplast" setxy (-0.25 * max-pxcor) (-0.3 * max-pycor) set size 1.7 * max-pycor set heading 90]
@@ -270,8 +270,8 @@ to run-CO2
   if (ticks - tickCounter > animationRate) [
     ask CO2 [ if ycor > cell-top [ setxy random-Xcor (cell-top + random (ocean-top - cell-top) + 1)  set heading random 360 ]]
     ask CO2 [ if ycor < cell-top AND ycor > chloroplast-top [setxy (chloroplast-left + random (chloroplast-right - chloroplast-left)) (chloroplast-top + random (cell-top - chloroplast-top - 1) + 1)  set heading random 360 ]]
-    ask CO2 [ if ycor < chloroplast-top AND ycor > plasmid-top [setxy (plasmid-left + random (plasmid-right - plasmid-left)) (plasmid-top + random (chloroplast-top - plasmid-top - 1) + 1)  set heading random 360 ]]
-    ask CO2 [ if ycor < plasmid-top AND calvinCycle-location != 1 AND  calvinCycle-location != 2 AND calvinCycle-location != 3 AND calvinCycle-location != 4 [setxy (plasmid-left + random (plasmid-right - plasmid-left)) (plasmid-top - 3 + random 3 )  set heading random 360  ]]
+    ask CO2 [ if ycor < chloroplast-top AND ycor > pyrenoid-top [setxy (pyrenoid-left + random (pyrenoid-right - pyrenoid-left)) (pyrenoid-top + random (chloroplast-top - pyrenoid-top - 1) + 1)  set heading random 360 ]]
+    ask CO2 [ if ycor < pyrenoid-top AND calvinCycle-location != 1 AND  calvinCycle-location != 2 AND calvinCycle-location != 3 AND calvinCycle-location != 4 [setxy (pyrenoid-left + random (pyrenoid-right - pyrenoid-left)) (pyrenoid-top - 3 + random 3 )  set heading random 360  ]]
     set tickCounter ticks 
   ]
 end
@@ -283,7 +283,7 @@ to pump-CO2
     diffuse-out (-0.4 * max-pxcor) (0.62 * max-pycor)
     diffuse-in (-0.4 * max-pxcor) (0.38 * max-pycor)
     diffuse-out (-0.4 * max-pxcor) (0.38 * max-pycor)
-    if ( count CO2 with [ ycor < plasmid-top ] < 30 ) [ pump-in (-0.4 * max-pxcor) (0.16 * max-pycor) set ATPcount ( ATPcount + ATP-Transport-Size-Cost * (  [size] of one-of nodes with [ name = "CCM Transporter" ] ) / 100 ) ]
+    if ( count CO2 with [ ycor < pyrenoid-top ] < 30 ) [ pump-in (-0.4 * max-pxcor) (0.16 * max-pycor) set ATPcount ( ATPcount + ATP-Transport-Size-Cost * (  [size] of one-of nodes with [ name = "CCM Transporter" ] ) / 100 ) ]
    ]]
 end 
 
@@ -333,9 +333,9 @@ to run-animation
               ask one-of CO2 with [ calvinCycle-location = 1 ] [ set heading 200 fd 3 set calvinCycle-location 2 ]
             ]
         
-            [ if ( any? CO2 with [  ycor < plasmid-top AND ycor > plasmid-top - 2 ] ) 
+            [ if ( any? CO2 with [  ycor < pyrenoid-top AND ycor > pyrenoid-top - 2 ] ) 
               [ 
-                ask one-of CO2 with [  ycor < plasmid-top AND ycor > plasmid-top - 2 ] [ setxy -0.4 * max-pxcor -2 set heading 250 fd 3 set calvinCycle-location 1 ] 
+                ask one-of CO2 with [  ycor < pyrenoid-top AND ycor > pyrenoid-top - 2 ] [ setxy -0.4 * max-pxcor -2 set heading 250 fd 3 set calvinCycle-location 1 ] 
                 
               ]
             ]
@@ -440,7 +440,7 @@ to do-plots
   let ocean-patch-count 198
   let cell-patch-count 54
   let chloroplast-patch-count 48
-  let plasmid-patch-count 48
+  let pyrenoid-patch-count 48
     
   set-current-plot "CO2 Concentrations"
   set-current-plot-pen "Ocean"
@@ -448,9 +448,9 @@ to do-plots
   set-current-plot-pen "Cytoplasm"
   plot ( count CO2 with [ ycor < cell-top AND ycor > chloroplast-top ] ) / cell-patch-count
   set-current-plot-pen "Chloroplast"
-  plot ( count CO2 with [ ycor < chloroplast-top AND ycor > plasmid-top] ) / chloroplast-patch-count
-  set-current-plot-pen "Plasmid"
-  plot ( count CO2 with [ ycor < plasmid-top ] ) / plasmid-patch-count
+  plot ( count CO2 with [ ycor < chloroplast-top AND ycor > pyrenoid-top] ) / chloroplast-patch-count
+  set-current-plot-pen "Pyrenoid"
+  plot ( count CO2 with [ ycor < pyrenoid-top ] ) / pyrenoid-patch-count
      
   set-current-plot "ATP Used"
   set-current-plot-pen "ATP"
@@ -740,7 +740,7 @@ PENS
 "Ocean" 1.0 0 -16777216 true "" ""
 "Cytoplasm" 1.0 0 -13840069 true "" ""
 "Chloroplast" 1.0 0 -2674135 true "" ""
-"Plasmid" 1.0 0 -955883 true "" ""
+"Pyrenoid" 1.0 0 -955883 true "" ""
 
 BUTTON
 37
@@ -779,23 +779,23 @@ NIL
 @#$#@#$#@
 ## WHAT IS IT?
 
-This model shows how diatoms adjust to changing concentrations of carbon dioxide in seawater, based on the research of Hennon et. al. “Diatom Acclimation to elevated CO2 via cAMP signaling and coordinated gene expression”, Nature Climate Change, June 2015 .   They are two aspects to the world.  The first is agent based, where carbon dioxide molecules either diffuse or are shuttled into the plasmid through carbon-concentration mechanism (CCM) transporters.  The second shows a gene pathway which is hypothesized to control the action of the CCM system.  
+This model shows how diatoms adjust to changing concentrations of carbon dioxide in seawater, based on the research of Hennon et. al. “Diatom Acclimation to elevated CO2 via cAMP signaling and coordinated gene expression”, Nature Climate Change, June 2015 .   They are two aspects to the world.  The first is agent based, where carbon dioxide molecules either diffuse or are shuttled into the pyrenoid through carbon-concentration mechanism (CCM) transporters.  The second shows a gene pathway which is hypothesized to control the action of the CCM system.  
 
 ## HOW IT WORKS
 
 The gene pathway involves a series of nodes and edges, each of which are turtles.  All of these turtles stay in one place, but change size and color.  Edges are setup between nodes in order to show the network.   During “Go”, the nodes perform a function called "update-nodes" where their size varies either directly (CO2, CYCc, cAMP, Transcription Factor) or indirectly (CCM Tranporters) with the "CO2-amount" slider.  The cAMP node can also be “knocked out” using a button on the interface screen, or reactivated.  Once “knocked-out”, the observer calls a function “toggle-cAMP” which sets the “knockedout?” variables owned by cAMP, Transcription Factor, and CCM Transporters to be true.  When “update-nodes” is called during the next tick cycle, an “if” statement checks to see if nodes have “knockedout?” equal to “true”, and if so sets the size of these nodes to be very small and their color to be that of the patches, so that the nodes disappear.  Reactivating reverses the process, setting the “knockedout?” variable of the relevant nodes equal to “false”.
 
-The agent based model consists of turtles called CO2 which look like a carbon dioxide molecule.  Then can be in one of four spaces… in the ocean, in the cell, in the chloroplast, or in the plasmid.  The number of CO2 which are initially created in the ocean is equal to one tenth of the slider value of "CO2-amount".   Each tick, CO2 molecules randomly move within their existing space based on the “run-CO2” function which just gives them a random xy location, and changes their heading randomly.
+The agent based model consists of turtles called CO2 which look like a carbon dioxide molecule.  Then can be in one of four spaces… in the ocean, in the cell, in the chloroplast, or in the pyrenoid.  The number of CO2 which are initially created in the ocean is equal to one tenth of the slider value of "CO2-amount".   Each tick, CO2 molecules randomly move within their existing space based on the “run-CO2” function which just gives them a random xy location, and changes their heading randomly.
 
 Three nodes called CCM Transporters use three functions called “pump-in”, “diffuse-in”, and “diffuse-out” to ask patches directly above (“pump-in” or “diffuse-in”) or below (“diffuse-out”) themselves if any? CO2 molecule are on those patches.  If so, they ask one-of those CO2 molecules to move one space further into the cell (“pump-in” or “diffuse-in”) or one space further out of the cell (“diffuse-out”).   The “pump-in” function only happens if the CCM transporters are not “knockedout?”.   All three of these functions ask more patches if the nodes are larger (see Netlogo features below), so that the movement rate of CO2 depends directly on the size of the CCM transporters.
 
-Pumping continues until the number of CO2 molecules in the plasmid is 30 (an arbitrary choice).   Each time that a CO2 is pumped into the plasmid, a new CO2 is created in the ocean.  This allows for a sort of steady state to be reached in the model.
+Pumping continues until the number of CO2 molecules in the pyrenoid is 30 (an arbitrary choice).   Each time that a CO2 is pumped into the pyrenoid, a new CO2 is created in the ocean.  This allows for a sort of steady state to be reached in the model.
 
 A graph shows the concentrations of CO2 in the four spaces.  Concentrations are calculated by counting the CO2 int those spaces and then dividing by the number of patches in those spaces.
 
-The world includes an animation of the Calvin Cycle which can be turned on and off using buttons on the interface.  The function “run-animation” spins a turtle called “Calvin Cycle”.  It also asks one CO2 turtle in the plasmid to move through a series of three locations making it appear that this molecule is moving through the Calvin cycle.  This CO2 molecule is “dropped” at the bottom of the rotating arrow.  Two more CO2 turtles are picked up and dropped, and when three CO2 turtles are in the last location, they are ask to die and a G3P turtle is created in the same location.  This represents the process of fixing CO2 into the three-carbon precursor of a sugar molecule.
+The world includes an animation of the Calvin Cycle which can be turned on and off using buttons on the interface.  The function “run-animation” spins a turtle called “Calvin Cycle”.  It also asks one CO2 turtle in the pyrenoid to move through a series of three locations making it appear that this molecule is moving through the Calvin cycle.  This CO2 molecule is “dropped” at the bottom of the rotating arrow.  Two more CO2 turtles are picked up and dropped, and when three CO2 turtles are in the last location, they are ask to die and a G3P turtle is created in the same location.  This represents the process of fixing CO2 into the three-carbon precursor of a sugar molecule.
 
-A graph show how much ATP has been "consumed."  In the model, ATP is used at a rate of 1 everytime a CO2 molecule is pumped into the plasmid, and also at a rate of ATP-Transport-Size-Cost * (  [size] of one-of nodes with [ name = "CCM Transporter" ] ) / 100 ) each tick provided that the CCM mechanism isn't knocked out and there are not 30 CO2 in the plasmid.  The goal is to represent the fact that the CCM transporter needs to work harder when there is less CO2 present.  
+A graph show how much ATP has been "consumed."  In the model, ATP is used at a rate of 1 everytime a CO2 molecule is pumped into the pyrenoid, and also at a rate of ATP-Transport-Size-Cost * (  [size] of one-of nodes with [ name = "CCM Transporter" ] ) / 100 ) each tick provided that the CCM mechanism isn't knocked out and there are not 30 CO2 in the pyrenoid.  The goal is to represent the fact that the CCM transporter needs to work harder when there is less CO2 present.  
 
 The interface has a slider called Amount-of-G3P-to-Produce.  If the Calvin Cycle is "on", then G3P is being produced.  The amount of G3P is tracked in the global variable G3Pcount.  If this variable exceeds Amount-of-G3P-to-Produce, then the simulation is stopped.
 
@@ -819,7 +819,7 @@ Ultimately this model is about how the diatom might adjust to rising CO2 levels 
 
 1. How do the final concentration of CO2 in the various spaces compare?  How do these concentrations change as the level of CO2 is changed?
 
-2. Compare the amount of energy and the amount of time it takes to pump thirty CO2 into the plasmid under various initial amounts of CO2.
+2. Compare the amount of energy and the amount of time it takes to pump thirty CO2 into the pyrenoid under various initial amounts of CO2.
 
 3. Look at which cellular functions are up-regulated and down-regulated in the gene enrichment graph.  Look up the purposes of these cellular functions.  Why might the diatom respond as it does?
 
@@ -834,7 +834,7 @@ Several hacks were necessary to make this model function the way I wanted it to.
 
 The graph which shows gene enrichment is a hacked bar graph.  I set the pens to be bar format, used a pen to make a horizonal line very far out on the x-axis, and then turned off autoscale.  I created a reporter ("scale") which scales the height of the bars in proportion to the CO2-amount as compared to the value of the variables CO2-ppm-high and CO2-ppm-low.  Each bar has a maximum value based on Figure 1c in the paper.  I created functions ("plot50" and "plot100") which just plot a point (which becomes a bar with the pen settings) over and over again (100 times for bars, 50 times for the space between bars), which creates the illusion of a real bar graph.  This graph is only updated if the slider CO2-amount has been changed by comparing CO2-amount to a global variable called CO2-current which is set only after the graph is updated.
 
-This animations which move the CO2 around the Calvin Cycle, and then move G3P were challenging because they require keeping track of one turtle, and moving it to specific locations sequentially.  To do this, I gave each CO2 a variable called "calvinCycle-location".  When the animation is on, the observer asks a turtle in the plasmid to move to a specific position, and to set its location variable to be "1".  The next time through the cycle, the observer first checks for any CO2 with calvinCycle-location = 4, 3, 2, or 1 before moving another CO2 into the Calvin Cycle.  In this manner it shuttles them around, moving a CO2 to a new position and setting its calvinCycle-location to be one higher, until it is 4.  The observer checks to see if there are 3 CO2s with calvinCycle-location = 4, and if not moves another CO2 into the cycle.  If there are 3 CO2s with calvinCycle-location = 4, the observer asks them to die and creates a G3P molecule, then runs a similar set of "if" statements to move the G3P, tracking its location with a "location" variable owned by the G3P.
+This animations which move the CO2 around the Calvin Cycle, and then move G3P were challenging because they require keeping track of one turtle, and moving it to specific locations sequentially.  To do this, I gave each CO2 a variable called "calvinCycle-location".  When the animation is on, the observer asks a turtle in the pyrenoid to move to a specific position, and to set its location variable to be "1".  The next time through the cycle, the observer first checks for any CO2 with calvinCycle-location = 4, 3, 2, or 1 before moving another CO2 into the Calvin Cycle.  In this manner it shuttles them around, moving a CO2 to a new position and setting its calvinCycle-location to be one higher, until it is 4.  The observer checks to see if there are 3 CO2s with calvinCycle-location = 4, and if not moves another CO2 into the cycle.  If there are 3 CO2s with calvinCycle-location = 4, the observer asks them to die and creates a G3P molecule, then runs a similar set of "if" statements to move the G3P, tracking its location with a "location" variable owned by the G3P.
 
 The method of varying the rate of CO2 transport based on the size of the CCM transporters works as follows:   a CCM node asked the patches with the following criteria if they have any CO2 turtles "here":  pxcor > xlocation - 800 / CO2-amount AND pxcor < xlocation + 800 / CO2-amount  AND pycor > ylocation AND pycor < ylocation + k
 .  The value of "k" was just used by trial and error until it worked.  The number of patches thus asked varies indirectly with the value of CO2-amount... less patches are asked with the CO2-amount is larger.  If any of the turtles are on these patches, one of them is asked to jump down into the next space.  I initially did this by setting its ycor to be greater, but this led to the problem that it would immediately diffuse out because it was in the space that was checked by the diffuse-out function.  A hack to get around this problem was to ask the CO2 which had just been shuttled in to move horizontally:
@@ -849,7 +849,7 @@ This process ensures it won't get diffused out immediately.
 
 ## CREDITS AND REFERENCES
 
-This model was developed with the help of Monica Orellana, Justin Ashworth, Mari Herbert, and Claudia Ludwig at the Institute for Systems Biology under the financial support of **** . 
+This model was developed with the help of Monica Orellana, Justin Ashworth, Mari Herbert, and Claudia Ludwig at the Institute for Systems Biology under the financial support of **** .   The paper on which this model was created can be found at http://www.nature.com/nclimate/journal/vaop/ncurrent/abs/nclimate2683.html .
 @#$#@#$#@
 default
 true
