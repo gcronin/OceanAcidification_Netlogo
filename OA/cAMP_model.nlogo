@@ -23,13 +23,13 @@ globals [ runCalvinCycle? tickCounter animationRate
   ATPcount ATP-per-CO2Transport ATP-Transport-Size-Cost
   slope CO2-ppm-min CO2-ppm-max CO2-current 
   i 
-  cAMP-ko-status
+  cAMP-inhibit-status
   ]
 
 CO2-own [ calvinCycle-location ]
 G3P-own [ location ]
 membranes-own [ name ]
-nodes-own [ name amount in-edges out-edges knockedout? nodetype ]
+nodes-own [ name amount in-edges out-edges MaxSize? nodetype ]
 edges-own [ from into edge_type ]
 edge-heads-own [ parent-edge ]
 edge-bodies-own [ parent-edge ]
@@ -108,7 +108,7 @@ to setup-nodes
   create-nodes 9
     [ set in-edges []
       set out-edges []
-      set knockedout? false 
+      set MaxSize? false 
       set amount 0 ]
   
   ;; customize individual nodes
@@ -277,7 +277,7 @@ to run-CO2
 end
 
 to pump-CO2
-  ask nodes with [ who = 10 ] [ if knockedout? = false  
+  ask nodes with [ who = 10 ] [ if MaxSize? = false  
   [
     diffuse-in (-0.4 * max-pxcor) (0.62 * max-pycor)
     diffuse-out (-0.4 * max-pxcor) (0.62 * max-pycor)
@@ -380,17 +380,17 @@ to update-nodes
   ask nodes with [ name = "CYCc" ] [set amount CO2-amount / 8 ]
                                   
   
-  ask nodes with [ name = "cAMP" ] [ ifelse knockedout? = true [ set amount 0 ]  
+  ask nodes with [ name = "cAMP" ] [ ifelse MaxSize? = true [ set amount CO2-amount / 5 ]  ;; make this BIG if MaxSize is set.
                                   [ set amount CO2-amount / 8 ]]                                
 
-  ask nodes with [ name = "Transcription Factor" ] [ ifelse knockedout? = true [ set amount 0 ]  
+  ask nodes with [ name = "Transcription Factor" ] [ ifelse MaxSize? = true [ set amount CO2-amount / 5 ]   ;; make this BIG if MaxSize is set.
                                   [ set amount CO2-amount / 8 ]]
                                                                     
   
-  ask nodes with [ name = "CCM Transporter" ] [ ifelse knockedout? = true [ set amount 0 ]  
+  ask nodes with [ name = "CCM Transporter" ] [ ifelse MaxSize? = true [ set amount 0 ]  ;; ;; make this SMALL if MaxSize is set...the naming is counterintuitive since cAMP slows CO2 uptake 
                                   [ set amount (800 - CO2-amount) / 6 ]]
                                   
-  ask nodes with [ name = "Gamma Carbonic Anhydrase" ] [ ifelse knockedout? = true [ set amount 0 ]  
+  ask nodes with [ name = "Gamma Carbonic Anhydrase" ] [ ifelse MaxSize? = true [ set amount 0 ]  
                                   [ set amount (800 - CO2-amount) / 10 ]]
                                   
                                   
@@ -403,7 +403,7 @@ to update-display ;; node procedure
   set size ((amount / 25) + 1.5)
   
   ;; set colors
-  ifelse knockedout? = true [ set color 109 if nodetype = "transporter" OR nodetype = "activeTransporter"[ set shape "transport-closed" ] ] [
+  ifelse MaxSize? = true [ if nodetype = "transporter" OR nodetype = "activeTransporter"[ set shape "transport-closed" ] ] [
     if nodetype = "control"  [ set color scale-color yellow amount 220 -20]
     if nodetype = "protein"  [ set color scale-color green amount 220 -20 ]
     if nodetype = "messenger" [ set color scale-color orange amount 220 -20 ] 
@@ -415,21 +415,21 @@ end
 
 
 
-;; ***** KNOCKOUT PROCEDURES *****
+;; ***** INHIBIT PROCEDURES *****
 
-to knockout [ nodename ]
-  if nodename = "cAMP" [ toggle-cAMP true set cAMP-ko-status true]
+to addIBMX [ nodename ]
+  toggle-cAMP true set cAMP-inhibit-status true
 end
 
 
-to reactivate [ nodename ] 
-  if nodename = "cAMP" [ toggle-cAMP false set cAMP-ko-status false ]
-  if cAMP-ko-status = true [ toggle-cAMP true ]
+to removeIBMX [ nodename ] 
+  toggle-cAMP false set cAMP-inhibit-status false
+  if cAMP-inhibit-status = true [ toggle-cAMP true ]
 
 end
 
 to toggle-cAMP [ change-value ]
- ask nodes with [ name = "cAMP" or name = "Transcription Factor" or name = "Gamma Carbonic Anhydrase" or name = "CCM Transporter"  ] [ set knockedout? change-value ]                              
+ ask nodes with [ name = "cAMP" or name = "Transcription Factor" or name = "Gamma Carbonic Anhydrase" or name = "CCM Transporter"  ] [ set maxSize? change-value ]                              
 end
 
 
@@ -591,12 +591,12 @@ NIL
 1
 
 BUTTON
-73
-160
-273
-193
-knockout cAMP with IBMX
-knockout \"cAMP\"
+41
+161
+310
+194
+Inhibit cAMP hydrolysis with IBMX
+addIBMX \"cAMP\"
 NIL
 1
 T
@@ -612,8 +612,8 @@ BUTTON
 206
 241
 239
-Reactive cAMP
-reactivate \"cAMP\"
+Remove IBMX
+removeIBMX \"cAMP\"
 NIL
 1
 T
@@ -826,7 +826,9 @@ Ultimately this model is about how the diatom might adjust to rising CO2 levels 
 
 ## EXTENDING THE MODEL
 
-Currently the CO2 in the model does not dynamically change when the "CO2-amount" slider is moved.   This can be deceptive since the graph and the gene pathway do change. 
+Currently the number of CO2 turtles in the ocean does not dynamically change when the "CO2-amount" slider is moved during "Go".   This can be deceptive since the graph and the gene pathway nodes do change.  Perhaps the slider should only work before "Go" is pressed?
+
+Or, the whole model could be more dynamic during the "Go" phase.  The slider might be disabled, and the CO2 node (turtle 5) would scale with the amount of CO2 in the ocean, so that the genetic pathway and the size of the CCM transporters would vary dynamically.  I would think there should also be a feedback mechanism related to the amount of CO2 in the pyrenoid, such that the size of the CCM transporters decreases as the pyrenoid reaches saturation.
 
 ## NETLOGO FEATURES
 
@@ -849,7 +851,7 @@ This process ensures it won't get diffused out immediately.
 
 ## CREDITS AND REFERENCES
 
-This model was developed with the help of Monica Orellana, Justin Ashworth, Mari Herbert, and Claudia Ludwig at the Institute for Systems Biology under the financial support of **** .   The paper on which this model was created can be found at http://www.nature.com/nclimate/journal/vaop/ncurrent/abs/nclimate2683.html .
+This model was developed with the help of Monica Orellana, Justin Ashworth, Mari Herbert, and Claudia Ludwig at the Institute for Systems Biology under the financial support of NSF MCB 1316206.   The paper on which this model was created can be found at http://www.nature.com/nclimate/journal/vaop/ncurrent/abs/nclimate2683.html .
 @#$#@#$#@
 default
 true

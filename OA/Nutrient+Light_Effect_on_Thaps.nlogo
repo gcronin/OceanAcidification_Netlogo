@@ -1,3 +1,6 @@
+;; Author:  Gabriel Cronin
+;; Created July, 2015
+
 ;--------------------------------------------------------------------------------------------------------------------------
 ; BREEDS AND GLOBAL VARIABLES
 ;--------------------------------------------------------------------------------------------------------------------------
@@ -141,6 +144,7 @@ to go
     ask gene 23 [ NutrientturnONdual ]
   ]
   
+  ;; These commands check to see if adjacent turtles in the top are the same color.  If so, the links between them are colored.  Otherwise, the links are hidden.
   ask TFs [ if ( color = green ) [ ask my-out-links [ ifelse [color] of other-end = green [ set color green ] [ set color 39 ] ] ] ]
   ask TFs [ if ( color = red ) [ ask my-out-links [ ifelse [color] of other-end = red [ set color red ] [ set color 39 ] ] ] ]
   ask TFs [ if ( color = orange ) [ ask my-out-links [ ifelse [color] of other-end = orange [ set color orange ] [ set color 39 ] ] ] ]
@@ -149,6 +153,8 @@ to go
   ask genes [ if ( color = red ) [ ask my-out-links [ ifelse [color] of other-end = red [ set color red ] [ set color 39 ] ] ] ]
   ask genes [ if ( color = orange ) [ ask my-out-links [ ifelse [color] of other-end = orange [ set color orange ] [ set color 39 ] ] ] ]
   
+  
+  ;; diatom behavior
   ask diatoms [
     feed
     move
@@ -156,6 +162,7 @@ to go
     if ( health < 0 ) [ die ]
   ]
   
+  ;; Plotting method... rest of plotting is done directly from the interface
   set-current-plot "pH"
   set-current-plot-pen "pH"
   plot ((count CO2s * -.005035) + 8.630)
@@ -178,7 +185,7 @@ to setupPatches  ;Setup Patches:  Grey at top, black line in middle, sunlight or
 end
 
 to mix
- 
+ ;; this doesn't currently do anything
 end
 
 
@@ -272,7 +279,7 @@ end
 ;--------------------------------------------------------------------------------------------------------------------------
 ; CREATE GENES
 ;--------------------------------------------------------------------------------------------------------------------------
-
+; Create the 4 genes, attach labels, and position appropriately
 to setupGenes [ xlocation ]
   let numberGenes 4
   let scalingFactor max-pycor / 2 / ( numberGenes - 1.8  )  ;last number is a fudge factor which spreads the cellFunctions evenly vertically
@@ -303,6 +310,7 @@ end
 ;--------------------------------------------------------------------------------------------------------------------------
 ; CREATE CELL FUNCTIONS
 ;--------------------------------------------------------------------------------------------------------------------------
+; Create the 5 cellular functions, attach labels, and position appropriately
 to setupCellFunctions [ xlocation ]
   let numFunctions 6
   let scalingFactor max-pycor / 2 / ( numFunctions - 2.8 )   ;last number is a fudge factor which spreads the cellFunctions evenly vertically
@@ -393,7 +401,7 @@ end
 ;--------------------------------------------------------------------------------------------------------------------------
 ; REGULATION
 ;--------------------------------------------------------------------------------------------------------------------------
-; Change appearance of Transcription Factors/Cell Functions to make them appear on or off  
+; Change appearance of Transcription Factors/Genes/Cell Functions to make them appear on or off  
 to NutrientturnONdual
   set statusNutrient 1
   setSizeShapeDualRegulated
@@ -434,6 +442,8 @@ to LightturnOFFsingle
   setSizeShapeSingleRegulated
 end
 
+;; Two versions are used to set the size and the color.  The first is used if the turtle is affected by both light and nutrients.  
+;; The second is used if the turtle is affected by only one or the other.
 to setSizeShapeDualRegulated
   set size ( statusNutrient + statusLight + 2 )
   if ( statusNutrient + statusLight = 2 ) [ set color green ]
@@ -761,17 +771,25 @@ There is no effect of changing CO2  levels on growth of diatoms in the model.  T
 
 A binary system is in effect for whether the diatoms can pick up nutrients.  See "feed".  A random number between 0 and 19 is generated.  If nutrients levels are high, 10 is subtracted from this number.  If nutrients levels are low, the number is not changed.  Then the numbers if compared to 5, and if it is greater, the diatom "picks up" the nutrient.   This system seems artificial to me.
 
+The motion of the diatoms is not very appealing to the eye.  They could be made to "diffuse" in more of a random walk within the bottom of the world. 
+
 
 ## NETLOGO FEATURES
 
-(interesting or unusual features of NetLogo that the model uses, particularly in the Code tab; or where workarounds were needed for missing features)
+This model has a couple interesting features.  In the top of the world, there are lines which show connections between the transcription factors (TFs), genes, and cellular functions.  To show that transcription factors can control the expression of genes which can control the cellular functions, there are lines running from same colored TFs to genes, and from same colored genes to cellular functions.  Links were setup between every This lines were created using a series of commands such as:
+
+ask TFs [ if ( color = green ) [ ask my-out-links [ ifelse [color] of other-end = green [ set color green ] [ set color 39 ] ] ] ]
+
+The green colored TFs look at their out links and if the color of the gene to which they are attached is also green, then the link is set to be green, and otherwise it is set to be the color of the background patches, so that the link disappears.
+
+Another interesting feature is that there are turtles which function as labels but are much more customizable than normal labels.  The turtles are breed "banners", and are hatched in the "attach-banner" function.  This function is called from the turtle to be labeled, and then the banner is linked to the calling turtle, tied to the calling turtle, and moved a distance to offset it from the calling turtle.  This distance is a parameter in the function call. 
 
 ## RELATED MODELS
 
 
 ## CREDITS AND REFERENCES
 
-This model was developed with the help of Monica Orellana, Justin Ashworth, Mari Herbert, and Claudia Ludwig at the Institute for Systems Biology under the financial support of **** .   The paper on which this model is based can be found here:  http://www.pnas.org/content/110/18/7518.abstract .
+This model was developed with the help of Monica Orellana, Justin Ashworth, Mari Herbert, and Claudia Ludwig at the Institute for Systems Biology under the financial support of NSF MCB 1316206 .   The paper on which this model is based can be found here:  http://www.pnas.org/content/110/18/7518.abstract .
 @#$#@#$#@
 default
 true
